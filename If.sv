@@ -1,52 +1,130 @@
 module If
+#(
+    N = 0, // Number of ways per set
+    B = 0, // Block size (bytes)
+    S = 0, // Number of sets
+    s = 0, // Number of set index bits
+    b = 0, // Number of block offset bits
+    y = 0, // Number of byte offset bits
+    t = 0 // Number of tag bits
+)
 (
     //****** IF ******
     input         enable,
     output        enableF,
-    input  [63:0] PCF,
-    output [31:0] instrF
+    output        IF_miss,
+    output        pc8,
+    output [63:0] araddr,
+    // Superscalar 1
+    input  [63:0] PCF1,
+    output [31:0] instrF1,
+    // Superscalar 2
+    input  [63:0] PCF2,
+    output [31:0] instrF2
 );
-localparam C = 4 * 1024;      // Cache size (bytes), not including overhead such as the valid, tag, and LRU bits
-localparam N = 2;             // Number of ways per set
-localparam B = 8;             // Block size (bytes)
-localparam S = 256; //C/(N*B) // Number of sets
 reg [63:0] Data [S][N][B];
-localparam m = 64;              // Number of physical address bits
-localparam s = 8; //log2(S)     // Number of set index bits
-localparam b = 3; //log2(B)     // Number of block offset bits
-localparam y = 3;               // Number of byte offset bits
-localparam t = m - (s + b + y); // Number of tag bits
 reg [t:0] Valid_Tag [S][N];
 reg LRU [S];
 
-// check miss
-logic miss;
-logic [t-1:0] tag = PCF[63:14];
-logic [s-1:0] set = PCF[13:6];
-logic [b-1:0] block = PCF[5:3];
+// Superscalar 1
+logic [t-1:0] tag1   = PCF1[63      : s+b+y];
+logic [s-1:0] set1   = PCF1[s+b+y-1 : b+y];
+logic [b-1:0] block1 = PCF1[b+y-1   : y];
+// Superscalar 2
+logic [t-1:0] tag2   = PCF2[63      : s+b+y];
+logic [s-1:0] set2   = PCF2[s+b+y-1 : b+y];
+logic [b-1:0] block2 = PCF2[b+y-1   : y];
 always_comb begin
     if(enable) begin
-        if(Valid_Tag[set][0][t] & (Valid_Tag[set][0][t-1:0] == tag)) begin
-            if(PCF[2]) begin
-                instrF = Data[set][0][block][63:32];
+        // Superscalar 1
+        if(Valid_Tag[set1][0][t] & (Valid_Tag[set1][0][t-1:0] == tag1)) begin
+            if(PCF1[2]) begin
+                instrF1 = Data[set1][0][block1][63:32];
             end else begin
-                instrF = Data[set][0][block][31:0];
+                instrF1 = Data[set1][0][block1][31:0];
             end
-            LRU[set] = 1;
-            enableF = 1;
+            LRU[set1] = 1;
+            if(!IF_miss) enableF = 1;
         end
-        else if(Valid_Tag[set][1][t] & (Valid_Tag[set][1][t-1:0] == tag)) begin
-            if(PCF[2]) begin
-                instrF = Data[set][1][block][63:32];
+        else if(Valid_Tag[set1][1][t] & (Valid_Tag[set1][1][t-1:0] == tag1)) begin
+            if(PCF1[2]) begin
+                instrF1 = Data[set1][1][block1][63:32];
             end else begin
-                instrF = Data[set][1][block][31:0];
+                instrF1 = Data[set1][1][block1][31:0];
             end
-            LRU[set] = 0;
-            enableF = 1;
+            LRU[set1] = 0;
+            if(!IF_miss) enableF = 1;
         end
-        else begin
+        else if(!IF_miss) begin
+            araddr = PCF1;
             enableF = 0;
-            miss = 1;
+            IF_miss = 1;
+        end
+        // Superscalar 2
+        if(!IF_miss) begin
+            case(instrF1[6:0])
+                //0,Finish //99,Type B //103,//115,Type I //111,Type J
+                0, 7'b1100011, 7'b1100111, 7'b1110011, 7'b1101111: begin
+                    instrF2 = 0;
+                end
+                default: begin
+                    if(Valid_Tag[set2][0][t] & (Valid_Tag[set2][0][t-1:0] == tag2)) begin
+                        if(PCF2[2]) begin
+                            instrF2 = Data[set2][0][block2][63:32];
+                        end else begin
+                            instrF2 = Data[set2][0][block2][31:0];
+                        end
+                        LRU[set2] = 1;
+                    end
+                    else if(Valid_Tag[set2][1][t] & (Valid_Tag[set2][1][t-1:0] == tag2)) begin
+                        if(PCF2[2]) begin
+                            instrF2 = Data[set2][1][block2][63:32];
+                        end else begin
+                            instrF2 = Data[set2][1][block2][31:0];
+                        end
+                        LRU[set2] = 0;
+                    end
+                    else begin
+                        instrF2 = 0;
+                    end
+                end
+            endcase
+        end
+        // pc8 = pc + 8
+        if(instrF2 != 0) begin // Superscalar 2 not use AXI
+            case(instrF1[6:0]) // compare rd, rs1, rs2.
+                //3,19,27,Type I //23,55,Type U //51,59,Type R
+                7'b0000011, 7'b0010011, 7'b0011011, 7'b0010111, 7'b0110111, 7'b0110011, 7'b0111011: begin
+                    case(instrF2[6:0])
+                        //3,19,27,103,Type I
+                        7'b0000011, 7'b0010011, 7'b0011011, 7'b1100111: begin
+                            if(instrF1[11:7] == instrF2[19:15]) begin
+                                instrF2 = 0;
+                                pc8 = 0;
+                            end else begin
+                                pc8 = 1;
+                            end
+                        end
+                        //35,Type S //51,59,Type R //99,Type B
+                        7'b0100011, 7'b0110011, 7'b0111011, 7'b1100011: begin
+                            if(instrF1[11:7] == instrF2[19:15] | instrF1[11:7] == instrF2[24:20]) begin
+                                instrF2 = 0;
+                                pc8 = 0;
+                            end else begin
+                                pc8 = 1;
+                            end
+                        end
+                        default: begin
+                            pc8 = 1;
+                        end
+                    endcase
+                end
+                default: begin
+                    pc8 = 1;
+                end
+            endcase
+        end else begin
+            pc8 = 0;
         end
     end else begin
         enableF = 0;
