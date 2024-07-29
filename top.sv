@@ -108,28 +108,28 @@ always_ff @ (posedge clk) begin
             $display("MEM1");
             m_axi_araddr <= (ALUResultM1[63:b+y] << (b+y));
             if(MEM.Dirty[MEM.set1][MEM.LRU[MEM.set1]]) begin
-              write_Data[0] = MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][0];
-              write_Data[1] = MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][1];
-              write_Data[2] = MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][2];
-              write_Data[3] = MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][3];
-              write_Data[4] = MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][4];
-              write_Data[5] = MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][5];
-              write_Data[6] = MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][6];
-              write_Data[7] = MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][7];
+              write_Data[0] <= MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][0];
+              write_Data[1] <= MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][1];
+              write_Data[2] <= MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][2];
+              write_Data[3] <= MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][3];
+              write_Data[4] <= MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][4];
+              write_Data[5] <= MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][5];
+              write_Data[6] <= MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][6];
+              write_Data[7] <= MEM.Data[MEM.set1][MEM.LRU[MEM.set1]][7];
             end
           end
           2: begin
             $display("MEM2");
             m_axi_araddr <= (ALUResultM2[63:b+y] << (b+y));
             if(MEM.Dirty[MEM.set2][MEM.LRU[MEM.set2]]) begin
-              write_Data[0] = MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][0];
-              write_Data[1] = MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][1];
-              write_Data[2] = MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][2];
-              write_Data[3] = MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][3];
-              write_Data[4] = MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][4];
-              write_Data[5] = MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][5];
-              write_Data[6] = MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][6];
-              write_Data[7] = MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][7];
+              write_Data[0] <= MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][0];
+              write_Data[1] <= MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][1];
+              write_Data[2] <= MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][2];
+              write_Data[3] <= MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][3];
+              write_Data[4] <= MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][4];
+              write_Data[5] <= MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][5];
+              write_Data[6] <= MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][6];
+              write_Data[7] <= MEM.Data[MEM.set2][MEM.LRU[MEM.set2]][7];
             end
           end
           3: begin
@@ -374,7 +374,7 @@ always_ff @ (posedge clk) begin
     m_axi_acready <= 0;
   end else begin
     if(enable) begin
-      if(PCSrcE) begin
+      if(PCSrcE & (PCTargetE > entry)) begin
         $display();
         if(enableF & !StallF) j_b = 1;
         pc = PCTargetE;
@@ -418,6 +418,7 @@ If #(.N(N),
      .y(y),
      .t(t)
 )IF(
+  .clk(clk),
   .enable(enable),
   .enableF(enableF),
   .IF_miss(IF_miss),
@@ -559,7 +560,10 @@ rd_wb RD_WB(
   .RdW2(RdW2),
   .RegWriteW2(RegWriteW2),
   .ResultW2(ResultW2),
-  .EcallW2(EcallW2)
+  .EcallW2(EcallW2),
+  // use to print
+  .PCD1(PCD1),
+  .PCD2(PCD2)
 );
 
 //@@@ pipe_RD_ALU && pipe_WB_end @@@
@@ -836,28 +840,24 @@ always_ff @ (posedge clk) begin
     if(!FlushM & !StallM) begin
       finishM <= finishE;
       // Superscalar 1
-      if(FrowardAM1) ALUResultM1 = $signed(RD_WB.registers[10]) + $signed(ImmExtE1);
-      else ALUResultM1 = ALUResultE1;
+      ALUResultM1 = ALUResultE1;
       //--- pipe ---
       RegWriteM1 <= RegWriteE1;
       ResultSrcM1 <= ResultSrcE1;
       MemWriteReadSizeM1 <= MemWriteReadSizeE1;
-      if(FrowardWM1) WriteDataM1 = RD_WB.registers[10];
-      else WriteDataM1 = WriteDataE1;
+      WriteDataM1 = WriteDataE1;
       Rs1M1 <= Rs1E1;
       Rs2M1 <= Rs2E1;
       RdM1 <= RdE1;
       PCPlus4M1 <= PCPlus4E1;
       EcallM1 <= EcallE1;
       // Superscalar 2
-      if(FrowardAM2) ALUResultM2 = $signed(RD_WB.registers[10]) + $signed(ImmExtE2);
-      else ALUResultM2 = ALUResultE2;
+      ALUResultM2 = ALUResultE2;
       //--- pipe ---
       RegWriteM2 <= RegWriteE2;
       ResultSrcM2 <= ResultSrcE2;
       MemWriteReadSizeM2 <= MemWriteReadSizeE2;
-      if(FrowardWM2) WriteDataM2 = RD_WB.registers[10];
-      else WriteDataM2 = WriteDataE2;
+      WriteDataM2 = WriteDataE2;
       Rs1M2 <= Rs1E2;
       Rs2M2 <= Rs2E2;
       RdM2 <= RdE2;
@@ -888,6 +888,14 @@ mem #(.N(N),
   .Stall_miss2(Stall_miss2),
   .MEM_miss1(MEM_miss1),
   .MEM_miss2(MEM_miss2),
+  // Hazard
+  .registers10(RD_WB.registers[10]),
+  .ImmExtE1(ImmExtE1),
+  .ImmExtE2(ImmExtE2),
+  .FrowardAM1(FrowardAM1),
+  .FrowardWM1(FrowardWM1),
+  .FrowardAM2(FrowardAM2),
+  .FrowardWM2(FrowardWM2),
   // Write
   .write_dirty1(write_dirty1),
   .write_dirty2(write_dirty2),

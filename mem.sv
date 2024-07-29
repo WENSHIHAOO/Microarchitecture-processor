@@ -16,6 +16,14 @@ module mem
     output        Stall_miss2,
     output        MEM_miss1,
     output        MEM_miss2,
+    // Hazard
+    input  [63:0] registers10,
+    input  [63:0] ImmExtE1,
+    input  [63:0] ImmExtE2,
+    output        FrowardAM1,
+    output        FrowardWM1,
+    output        FrowardAM2,
+    output        FrowardWM2,
     // Write
     output        write_dirty1,
     output        write_dirty2,
@@ -23,16 +31,16 @@ module mem
     output [63:0] write_dirty2_Data,
     // Superscalar 1
     input  [4:0]  MemWriteReadSizeM1,
-    input  [63:0] ALUResultM1,
-    input  [63:0] WriteDataM1,
+    output [63:0] ALUResultM1,
+    output [63:0] WriteDataM1,
     output [63:0] ReadDataM1,
     // use to print
     input  [4:0]  RdM1,
     input  [63:0] PCPlus4M1,
     // Superscalar 2
     input  [4:0]  MemWriteReadSizeM2,
-    input  [63:0] ALUResultM2,
-    input  [63:0] WriteDataM2,
+    output [63:0] ALUResultM2,
+    output [63:0] WriteDataM2,
     output [63:0] ReadDataM2,
     // use to print
     input  [4:0]  RdM2,
@@ -45,12 +53,16 @@ reg Dirty [S][N];
 
 // Superscalar 1
 // check miss1
-logic [t-1:0] tag1   = ALUResultM1[63      : s+b+y];
-logic [s-1:0] set1   = ALUResultM1[s+b+y-1 : b+y];
-logic [b-1:0] block1 = ALUResultM1[b+y-1   : y];
-// Read
-always_comb begin
+logic [t-1:0] tag1;
+logic [s-1:0] set1;
+logic [b-1:0] block1;
+always_ff @ (posedge clk) begin
     if(enableM) begin
+        if(FrowardAM1) ALUResultM1 = $signed(RD_WB.registers[10]) + $signed(ImmExtE1);
+        tag1   = ALUResultM1[63      : s+b+y];
+        set1   = ALUResultM1[s+b+y-1 : b+y];
+        block1 = ALUResultM1[b+y-1   : y];
+        // Read
         if(MemWriteReadSizeM1[3]) begin
             // Read 64 bit data
             if(Valid_Tag[set1][0][t] & (Valid_Tag[set1][0][t-1:0] == tag1)) begin
@@ -62,8 +74,8 @@ always_comb begin
                 LRU[set1] = 0;
             end
             else begin
-                MEM_miss1 = 1;
                 Stall_miss1 = 1;
+                MEM_miss1 = 1;
             end
             // Size
             if(!MEM_miss1) begin
@@ -102,13 +114,9 @@ always_comb begin
                 Stall_miss1 = 0;
             end
         end
-    end
-end
-
-// Write
-always_ff @ (posedge clk) begin
-    if(enableM) begin
+        // Write
         if(MemWriteReadSizeM1[4]) begin
+            if(FrowardWM1) WriteDataM1 = RD_WB.registers[10];
             if(!(MemWriteReadSizeM2[4] & (ALUResultM1 == ALUResultM2))) begin // If two Superscalar write at the same time.
                 if(Valid_Tag[set1][0][t] & (Valid_Tag[set1][0][t-1:0] == tag1)) begin
                     Dirty[set1][0] <= 1;
@@ -183,12 +191,16 @@ end
 
 // Superscalar 2
 // check miss2
-logic [t-1:0] tag2   = ALUResultM2[63      : s+b+y];
-logic [s-1:0] set2   = ALUResultM2[s+b+y-1 : b+y];
-logic [b-1:0] block2 = ALUResultM2[b+y-1   : y];
-// Read
-always_comb begin
+logic [t-1:0] tag2;
+logic [s-1:0] set2;
+logic [b-1:0] block2;
+always_ff @ (posedge clk) begin
     if(enableM) begin
+        if(FrowardAM2) ALUResultM2 = $signed(RD_WB.registers[10]) + $signed(ImmExtE2);
+        tag2   = ALUResultM2[63      : s+b+y];
+        set2   = ALUResultM2[s+b+y-1 : b+y];
+        block2 = ALUResultM2[b+y-1   : y];
+        // Read
         if(MemWriteReadSizeM2[3]) begin
             // Read 64 bit data
             if(Valid_Tag[set2][0][t] & (Valid_Tag[set2][0][t-1:0] == tag2)) begin
@@ -204,8 +216,8 @@ always_comb begin
                     // when Superscalar 1 write, Superscalar 2 read.
                     ReadDataM2 = 0;
                 end else begin
-                    MEM_miss2 = 1;
                     Stall_miss2 = 1;
+                    MEM_miss2 = 1;
                 end
             end
             // when Superscalar 1 write, Superscalar 2 read.
@@ -254,13 +266,9 @@ always_comb begin
                 Stall_miss2 = 0;
             end
         end
-    end
-end
-
-// Write
-always_ff @ (posedge clk) begin
-    if(enableM) begin
+        // Write
         if(MemWriteReadSizeM2[4]) begin
+            if(FrowardWM2) WriteDataM2 = RD_WB.registers[10];
             if(Valid_Tag[set2][0][t] & (Valid_Tag[set2][0][t-1:0] == tag2)) begin
                 Dirty[set2][0] <= 1;
                 LRU[set2] = 1;

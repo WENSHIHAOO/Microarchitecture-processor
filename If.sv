@@ -10,6 +10,7 @@ module If
 )
 (
     //****** IF ******
+    input  clk,
     input         enable,
     output        enableF,
     output        IF_miss,
@@ -34,7 +35,7 @@ logic [b-1:0] block1 = PCF1[b+y-1   : y];
 logic [t-1:0] tag2   = PCF2[63      : s+b+y];
 logic [s-1:0] set2   = PCF2[s+b+y-1 : b+y];
 logic [b-1:0] block2 = PCF2[b+y-1   : y];
-always_comb begin
+always_ff @ (posedge clk) begin
     if(enable) begin
         // Superscalar 1
         if(Valid_Tag[set1][0][t] & (Valid_Tag[set1][0][t-1:0] == tag1)) begin
@@ -126,8 +127,6 @@ always_comb begin
         end else begin
             pc8 = 0;
         end
-    end else begin
-        enableF = 0;
     end
 end
 endmodule

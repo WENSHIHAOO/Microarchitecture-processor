@@ -48,7 +48,10 @@ module rd_wb
     input  [4:0]  RdW2,
     input         RegWriteW2,
     input  [63:0] ResultW2,
-    input         EcallW2
+    input         EcallW2,
+    // use to print
+    input  [63:0] PCD1,
+    input  [63:0] PCD2
 );
 //****** RD ******
 // Superscalar 1
@@ -269,6 +272,7 @@ always_comb begin
                     EcallD1 = 1; // ecall
                 end
             end
+            default: $display("rd_wb invalid %0x instrD1: '%x'", PCD1, instrD1);
         endcase
     end
 end
@@ -491,6 +495,7 @@ always_comb begin
                     ALUControlD2 = 29;
                 end
             end
+            default: $display("rd_wb invalid %0x instrD1: '%x'", PCD2, instrD2);
         endcase
     end
 end

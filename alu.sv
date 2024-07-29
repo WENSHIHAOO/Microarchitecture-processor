@@ -162,7 +162,7 @@ always_comb begin
         end
         default: begin
           ALUResultE1 = 0;
-          $display("Invalid 11 ALUControlE[4:0]: '%b'", ALUControlE1[4:0]);
+          $display("alu invalid 11 ALUControlE[4:0]: '%b'", ALUControlE1[4:0]);
         end
       endcase
       ALUResultE1 = {{32{ALUResultE1[31]}}, ALUResultE1[31:0]};
@@ -285,7 +285,7 @@ always_comb begin
         end
         default: begin
           ALUResultE1 = 0;
-          $display("Invalid 10 ALUControlE[4:0]: '%b'", ALUControlE1[4:0]);
+          $display("alu invalid 10 ALUControlE[4:0]: '%b'", ALUControlE1[4:0]);
         end
       endcase
     end
@@ -381,7 +381,7 @@ always_comb begin
         end
         default: begin
           ALUResultE2 = 0;
-          $display("Invalid 21 ALUControlE[4:0]: '%b'", ALUControlE2[4:0]);
+          $display("alu invalid 21 ALUControlE[4:0]: '%b'", ALUControlE2[4:0]);
         end
       endcase
       ALUResultE2 = {{32{ALUResultE2[31]}}, ALUResultE2[31:0]};
@@ -504,7 +504,7 @@ always_comb begin
         end
         default: begin
           ALUResultE2 = 0;
-          $display("Invalid 20 ALUControlE[4:0]: '%b'", ALUControlE2[4:0]);
+          $display("alu invalid 20 ALUControlE[4:0]: '%b'", ALUControlE2[4:0]);
         end
       endcase
     end
