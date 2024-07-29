@@ -72,6 +72,8 @@ localparam s = 11;   //log2(S)           // Number of set index bits
 localparam b = 3;    //log2(B)           // Number of block offset bits
 localparam y = 3;                        // Number of byte offset bits
 localparam t = ADDR_WIDTH - (s + b + y); // Number of tag bits
+// Fully Associative Victim Cache Constants
+localparam V_N = 16;                     // Number of ways of Victim
 
 //--- AXI Snoop Data ---
 always_ff @ (posedge clk) begin
@@ -122,16 +124,178 @@ always_ff @ (posedge clk) begin
       set = MEM_addr1[s+b+y-1:b+y];
       block_y = MEM_addr1[b+y-1:0];
       m_axi_araddr = (MEM_addr1[63:b+y] << (b+y));
-      m_axi_arvalid <= 1;
-      m_axi_rready <= 1;
-      step = 1;
     end else if(IF_miss) begin
       fetch_i_d = 3;
       tag = IF_addr[63     :s+b+y];
       set = IF_addr[s+b+y-1:b+y];
       m_axi_araddr = (IF_addr[63:b+y] << (b+y));
-      m_axi_arvalid <= 1;
-      m_axi_rready <= 1;
+    end
+    // Victim Cache
+    if(fetch_i_d > 0) begin
+      if(fetch_i_d == 3) begin
+        // Check IF Victim Cache
+        for(int i=0; i<V_N; i++) begin
+          if(IF.Victim_Valid_Addr[i][64] & (IF.Victim_Valid_Addr[i][63:0]==IF_addr)) begin
+            if(IF.Valid_Tag[set][IF.LRU[set]][t]) begin
+              temp_Data[0] = IF.Victim[i][0];
+              temp_Data[1] = IF.Victim[i][1];
+              temp_Data[2] = IF.Victim[i][2];
+              temp_Data[3] = IF.Victim[i][3];
+              temp_Data[4] = IF.Victim[i][4];
+              temp_Data[5] = IF.Victim[i][5];
+              temp_Data[6] = IF.Victim[i][6];
+              temp_Data[7] = IF.Victim[i][7];
+
+              IF.Victim[i][0] = IF.Data[set][IF.LRU[set]][0];
+              IF.Victim[i][1] = IF.Data[set][IF.LRU[set]][1];
+              IF.Victim[i][2] = IF.Data[set][IF.LRU[set]][2];
+              IF.Victim[i][3] = IF.Data[set][IF.LRU[set]][3];
+              IF.Victim[i][4] = IF.Data[set][IF.LRU[set]][4];
+              IF.Victim[i][5] = IF.Data[set][IF.LRU[set]][5];
+              IF.Victim[i][6] = IF.Data[set][IF.LRU[set]][6];
+              IF.Victim[i][7] = IF.Data[set][IF.LRU[set]][7];
+              IF.Victim_Valid_Addr[i][64] = 1;
+              IF.Victim_Valid_Addr[i][63:0] = {{IF.Valid_Tag[set][IF.LRU[set]][t-1:0],set} << (b+y)};
+
+              IF.Data[set][IF.LRU[set]][0] = temp_Data[0];
+              IF.Data[set][IF.LRU[set]][1] = temp_Data[1];
+              IF.Data[set][IF.LRU[set]][2] = temp_Data[2];
+              IF.Data[set][IF.LRU[set]][3] = temp_Data[3];
+              IF.Data[set][IF.LRU[set]][4] = temp_Data[4];
+              IF.Data[set][IF.LRU[set]][5] = temp_Data[5];
+              IF.Data[set][IF.LRU[set]][6] = temp_Data[6];
+              IF.Data[set][IF.LRU[set]][7] = temp_Data[7];
+            end else begin
+              IF.Victim_Valid_Addr[i][64] = 0;
+              IF.Data[set][IF.LRU[set]][0] = IF.Victim[i][0];
+              IF.Data[set][IF.LRU[set]][1] = IF.Victim[i][1];
+              IF.Data[set][IF.LRU[set]][2] = IF.Victim[i][2];
+              IF.Data[set][IF.LRU[set]][3] = IF.Victim[i][3];
+              IF.Data[set][IF.LRU[set]][4] = IF.Victim[i][4];
+              IF.Data[set][IF.LRU[set]][5] = IF.Victim[i][5];
+              IF.Data[set][IF.LRU[set]][6] = IF.Victim[i][6];
+              IF.Data[set][IF.LRU[set]][7] = IF.Victim[i][7];
+            end
+            // Step Done Read
+            done_read = 1;
+            break;
+          end
+        end
+      end else begin
+        // Check MEM Victim Cache
+        for(int i=0; i<V_N; i++) begin
+          if(MEM.Victim_Valid_Addr[i][64] & (MEM.Victim_Valid_Addr[i][63:0]=={{tag,set}<<(b+y)})) begin
+            if(MEM.Valid_Tag[set][MEM.LRU[set]][t]) begin
+              temp_Data[0] = MEM.Data[set][MEM.LRU[set]][0];
+              temp_Data[1] = MEM.Data[set][MEM.LRU[set]][1];
+              temp_Data[2] = MEM.Data[set][MEM.LRU[set]][2];
+              temp_Data[3] = MEM.Data[set][MEM.LRU[set]][3];
+              temp_Data[4] = MEM.Data[set][MEM.LRU[set]][4];
+              temp_Data[5] = MEM.Data[set][MEM.LRU[set]][5];
+              temp_Data[6] = MEM.Data[set][MEM.LRU[set]][6];
+              temp_Data[7] = MEM.Data[set][MEM.LRU[set]][7];
+
+              MEM.Data[set][MEM.LRU[set]][0] = MEM.Victim[i][0];
+              MEM.Data[set][MEM.LRU[set]][1] = MEM.Victim[i][1];
+              MEM.Data[set][MEM.LRU[set]][2] = MEM.Victim[i][2];
+              MEM.Data[set][MEM.LRU[set]][3] = MEM.Victim[i][3];
+              MEM.Data[set][MEM.LRU[set]][4] = MEM.Victim[i][4];
+              MEM.Data[set][MEM.LRU[set]][5] = MEM.Victim[i][5];
+              MEM.Data[set][MEM.LRU[set]][6] = MEM.Victim[i][6];
+              MEM.Data[set][MEM.LRU[set]][7] = MEM.Victim[i][7];
+
+              MEM.Victim[i][0] = temp_Data[0];
+              MEM.Victim[i][1] = temp_Data[1];
+              MEM.Victim[i][2] = temp_Data[2];
+              MEM.Victim[i][3] = temp_Data[3];
+              MEM.Victim[i][4] = temp_Data[4];
+              MEM.Victim[i][5] = temp_Data[5];
+              MEM.Victim[i][6] = temp_Data[6];
+              MEM.Victim[i][7] = temp_Data[7];
+              MEM.Victim_Valid_Addr[i][64] = 1;
+              MEM.Victim_Valid_Addr[i][63:0] = {{MEM.Valid_Tag[set][MEM.LRU[set]][t-1:0],set} << (b+y)};
+            end else begin
+              MEM.Data[set][MEM.LRU[set]][0] = MEM.Victim[i][0];
+              MEM.Data[set][MEM.LRU[set]][1] = MEM.Victim[i][1];
+              MEM.Data[set][MEM.LRU[set]][2] = MEM.Victim[i][2];
+              MEM.Data[set][MEM.LRU[set]][3] = MEM.Victim[i][3];
+              MEM.Data[set][MEM.LRU[set]][4] = MEM.Victim[i][4];
+              MEM.Data[set][MEM.LRU[set]][5] = MEM.Victim[i][5];
+              MEM.Data[set][MEM.LRU[set]][6] = MEM.Victim[i][6];
+              MEM.Data[set][MEM.LRU[set]][7] = MEM.Victim[i][7];
+              MEM.Victim_Valid_Addr[i][64] = 0;
+            end
+            // Step Done Read
+            done_read = 1;
+            break;
+          end
+        end
+        // use in MEM Step Done Read
+        if(MEM.Dirty[set][MEM.LRU[set]]) begin
+          temp_Data[0] = MEM.Data[set][MEM.LRU[set]][0];
+          temp_Data[1] = MEM.Data[set][MEM.LRU[set]][1];
+          temp_Data[2] = MEM.Data[set][MEM.LRU[set]][2];
+          temp_Data[3] = MEM.Data[set][MEM.LRU[set]][3];
+          temp_Data[4] = MEM.Data[set][MEM.LRU[set]][4];
+          temp_Data[5] = MEM.Data[set][MEM.LRU[set]][5];
+          temp_Data[6] = MEM.Data[set][MEM.LRU[set]][6];
+          temp_Data[7] = MEM.Data[set][MEM.LRU[set]][7];
+        end
+      end
+
+      // Address Valid
+      if(!done_read) begin
+        // Add Victim Cache
+        if(fetch_i_d == 3) begin
+          if(IF.Valid_Tag[set][IF.LRU[set]][t]) begin
+            // Check IF Victim index
+            index = V_N;
+            for(int i=0; i<V_N; i++) begin
+              if(!IF.Victim_Valid_Addr[i][64]) begin
+                index = i;
+                break;
+              end
+            end
+            if(index == V_N) index = num_clk % V_N;
+            // Add IF Victim
+            IF.Victim[index][0] = IF.Data[set][IF.LRU[set]][0];
+            IF.Victim[index][1] = IF.Data[set][IF.LRU[set]][1];
+            IF.Victim[index][2] = IF.Data[set][IF.LRU[set]][2];
+            IF.Victim[index][3] = IF.Data[set][IF.LRU[set]][3];
+            IF.Victim[index][4] = IF.Data[set][IF.LRU[set]][4];
+            IF.Victim[index][5] = IF.Data[set][IF.LRU[set]][5];
+            IF.Victim[index][6] = IF.Data[set][IF.LRU[set]][6];
+            IF.Victim[index][7] = IF.Data[set][IF.LRU[set]][7];
+            IF.Victim_Valid_Addr[index][64] = 1;
+            IF.Victim_Valid_Addr[index][63:0] = {{IF.Valid_Tag[set][IF.LRU[set]][t-1:0],set} << (b+y)};
+          end
+        end else begin
+          if(MEM.Valid_Tag[set][MEM.LRU[set]][t]) begin
+            // Check MEM Victim index
+            index = V_N;
+            for(int i=0; i<V_N; i++) begin
+              if(!MEM.Victim_Valid_Addr[i][64]) begin
+                index = i;
+                break;
+              end
+            end
+            if(index == V_N) index = num_clk % V_N;
+            // Add MEM Victim
+            MEM.Victim[index][0] = MEM.Data[set][MEM.LRU[set]][0];
+            MEM.Victim[index][1] = MEM.Data[set][MEM.LRU[set]][1];
+            MEM.Victim[index][2] = MEM.Data[set][MEM.LRU[set]][2];
+            MEM.Victim[index][3] = MEM.Data[set][MEM.LRU[set]][3];
+            MEM.Victim[index][4] = MEM.Data[set][MEM.LRU[set]][4];
+            MEM.Victim[index][5] = MEM.Data[set][MEM.LRU[set]][5];
+            MEM.Victim[index][6] = MEM.Data[set][MEM.LRU[set]][6];
+            MEM.Victim[index][7] = MEM.Data[set][MEM.LRU[set]][7];
+            MEM.Victim_Valid_Addr[index][64] = 1;
+            MEM.Victim_Valid_Addr[index][63:0] = {{MEM.Valid_Tag[set][MEM.LRU[set]][t-1:0],set} << (b+y)};
+          end
+        end
+        m_axi_arvalid <= 1;
+        m_axi_rready <= 1;
+      end
       step = 1;
     end
   end
@@ -322,7 +486,8 @@ If #(.N(N),
      .s(s),
      .b(b),
      .y(y),
-     .t(t)
+     .t(t),
+     .V_N(V_N)
 )IF(
   .clk(clk),
   .enable(enable),
@@ -602,7 +767,8 @@ mem #(.N(N),
       .s(s),
       .b(b),
       .y(y),
-      .t(t)
+      .t(t),
+      .V_N(V_N)
 )MEM(
   .clk(clk),
   .enableM(enableM),
