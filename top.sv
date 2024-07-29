@@ -64,35 +64,215 @@ module top
   input   wire [3:0]             m_axi_acsnoop
 );
 
+//--- AXI Read Data ---
+logic fetch_i_d;
+wire  read_dirty;
+logic [1:0]  step;
+logic [2:0]  block_offset;
+logic [63:0] write_Data [8];
+always_ff @ (posedge clk) begin
+  if(step == 0) begin
+    if(MEM.miss) begin
+      step <= 1;
+      fetch_i_d <= 0;
+    end else if(IF.miss) begin
+      step <= 1;
+      fetch_i_d <= 1;
+    end
+  end
+  // Address Read
+  else if(step == 1) begin
+    if(m_axi_arready) begin
+      if(m_axi_arvalid) begin
+        m_axi_rready <= 1;
+        m_axi_arvalid <= 0;
+        block_offset <= 0;
+        step <= 2;
+      end else begin
+        if(fetch_i_d) begin
+          m_axi_araddr <= (PCF[63:6] << 6);
+        end else begin
+          $display("MEM");
+          m_axi_araddr <= (ALUResultM[63:6] << 6);
+          if(MEM.Dirty[MEM.set][MEM.LRU[MEM.set]]) begin
+            write_Data[0] = MEM.Data[MEM.set][MEM.LRU[MEM.set]][0];
+            write_Data[1] = MEM.Data[MEM.set][MEM.LRU[MEM.set]][1];
+            write_Data[2] = MEM.Data[MEM.set][MEM.LRU[MEM.set]][2];
+            write_Data[3] = MEM.Data[MEM.set][MEM.LRU[MEM.set]][3];
+            write_Data[4] = MEM.Data[MEM.set][MEM.LRU[MEM.set]][4];
+            write_Data[5] = MEM.Data[MEM.set][MEM.LRU[MEM.set]][5];
+            write_Data[6] = MEM.Data[MEM.set][MEM.LRU[MEM.set]][6];
+            write_Data[7] = MEM.Data[MEM.set][MEM.LRU[MEM.set]][7];
+          end
+        end
+        m_axi_arvalid <= 1;
+      end
+    end
+  end
+  // Data Read
+  else if(step == 2) begin
+    if(m_axi_rvalid) begin
+      if(fetch_i_d) begin
+        IF.Data[IF.set][IF.LRU[IF.set]][block_offset] <= m_axi_rdata;
+      end else begin
+        MEM.Data[MEM.set][MEM.LRU[MEM.set]][block_offset] <= m_axi_rdata;
+      end
+      block_offset <= block_offset + 1;
+      if (m_axi_rlast) begin
+        m_axi_rready <= 0;
+        m_axi_acready <= 1;
+        step <= 3;
+      end
+    end
+  end
+  // Check Snoop
+  else if(step == 3) begin
+    if(m_axi_acvalid && (m_axi_acsnoop == 4'hd)) begin
+      $display("0: ac 0x%x == ar 0x%x", m_axi_acaddr, m_axi_araddr);
+    end else begin
+      $display("1: ac 0x%x == ar 0x%x", m_axi_acaddr, m_axi_araddr);
+      if(fetch_i_d) begin
+        IF.Valid_Tag[IF.set][IF.LRU[IF.set]][50] <= 1;
+        IF.Valid_Tag[IF.set][IF.LRU[IF.set]][49:0] <= IF.tag;
+        IF.LRU[IF.set] = !IF.LRU[IF.set];
+        IF.miss = 0;
+      end else begin
+        MEM.Valid_Tag[MEM.set][MEM.LRU[MEM.set]][50] <= 1;
+        MEM.Valid_Tag[MEM.set][MEM.LRU[MEM.set]][49:0] <= MEM.tag;
+        MEM.LRU[MEM.set] = !MEM.LRU[MEM.set];
+        if(MEM.Dirty[MEM.set][MEM.LRU[MEM.set]]) begin
+          MEM.Dirty[MEM.set][MEM.LRU[MEM.set]] <= 0;
+          read_dirty <= 1;
+        end else begin
+          MEM.miss = 0;
+        end
+      end
+    end
+    m_axi_acready <= 0;
+    step <= 0;
+  end
+end
+
+//--- AXI Write Data ---
+logic dirty_r_w;
+wire  write_dirty;
+wire  [1:0]  write_step;
+wire  [63:0] write_dirty_Data;
+logic [2:0]  write_block_offset;
+always_ff @ (posedge clk) begin
+  if(write_step == 0) begin
+    if(read_dirty) begin
+      write_step <= 1;
+      dirty_r_w <= 0;
+    end else if(write_dirty) begin
+      write_step <= 1;
+      dirty_r_w <= 1;
+    end
+  end
+  // Address Write
+  else if(write_step == 1) begin
+    $display("write");
+    if(m_axi_awready) begin
+      m_axi_awvalid <= 0;
+      write_block_offset <= 0;
+      write_step <= 2;
+    end else begin
+      m_axi_awvalid <= 1;
+      if(dirty_r_w) begin
+        m_axi_awlen <= 0;
+        m_axi_awsize <= MemWriteReadSizeM[2:0];
+        case(MemWriteReadSizeM[2:0])
+          3'b000: m_axi_awaddr <=  ALUResultM[63:0];
+          3'b001: m_axi_awaddr <= (ALUResultM[63:1] << 1);
+          3'b010: m_axi_awaddr <= (ALUResultM[63:2] << 2);
+          3'b011: m_axi_awaddr <= (ALUResultM[63:3] << 3);
+        endcase
+      end else begin
+        m_axi_awlen <= 7;
+        m_axi_awsize <= 3;
+        m_axi_awaddr <= (ALUResultM[63:6] << 6);
+      end
+    end
+  end
+  // Data Write
+  else if(write_step == 2) begin
+    if(m_axi_wready) begin
+      if(dirty_r_w) begin
+        m_axi_wdata <= write_dirty_Data;
+        m_axi_wvalid <= 1;
+        m_axi_wlast <= 1;
+        write_dirty <= 0;
+        write_step <= 3;
+      end else begin
+        m_axi_wdata <= write_Data[write_block_offset];
+        m_axi_wvalid <= 1;
+        write_block_offset <= write_block_offset + 1;
+        if(write_block_offset == 8) begin
+          m_axi_wlast <= 1;
+          read_dirty <= 0;
+          MEM.miss = 0;
+          write_step <= 3;
+        end
+      end
+    end
+  end
+  // Done Write
+  else if(write_step == 3) begin
+    m_axi_wvalid <= 0;
+    write_step <= 0;
+  end
+end
+
 //****** begin ******
 wire [63:0] pc;
 wire [63:0] PCF;
 wire        enable;
 wire        enableF;
-//--- hazard ---
+// hazard
 wire  StallF;
+// jump & branch
+wire        PCSrcE;
+wire [63:0] PCTargetE;
 always_ff @ (posedge clk) begin
   if(reset) begin
-      pc <= entry;
-      PCF <= entry;
-      enable <= 1;
-      m_axi_arid <= 0; 
-      m_axi_arlen <= 7;  // Burst_Length = ARLEN[7:0] +1 = 8
-      m_axi_arsize <= 0; // Burst_Size = 2^ARSIZE[2:0] = 1
-                         // Total bytes= Burst_Length * Burst_Size = 8 bytes = 64 bits
-      m_axi_arburst <= 2;// Burst_Type: "00" = FIXED; "01" = INCR; "10" = WRAP
-      m_axi_arlock <= 0; // Atomic_Access: '0' Normal; '1' Exclusive
-      m_axi_arcache <= 0;// ARCACHE[0] Bufferable, ARCACHE[1] Cacheable, ARCACHE[2] Read-allocate, ARCACHE[3] Write-allocate
-      m_axi_arprot <= 6; // ARPROT[0] Privileged, ARPROT[1] Non-secure, ARPROT[2] Instruction
-      m_axi_arvalid <= 0;
-      m_axi_rready <= 0;
+    pc <= entry;
+    PCF <= entry;
+    enable <= 1;
+    // Write
+    m_axi_awid <= 0;
+    m_axi_awburst <= 1;// Burst_Type: "00" = FIXED; "01" = INCR; "10" = WRAP
+    m_axi_awlock <= 0; // Atomic_Access: '0' Normal; '1' Exclusive
+    m_axi_awcache <= 0;// ARCACHE[0] Bufferable, ARCACHE[1] Cacheable, ARCACHE[2] Read-allocate, ARCACHE[3] Write-allocate
+    m_axi_awprot <= 6; // ARPROT[0] Privileged, ARPROT[1] Non-secure, ARPROT[2] Instruction
+    m_axi_wstrb <= 8'b11111111;
+    m_axi_awvalid <= 0;
+    m_axi_wvalid <= 0;
+    m_axi_bready <= 1;
+    // Read
+    m_axi_arid <= 0; 
+    m_axi_arlen <= 7;  // Burst_Length = ARLEN[7:0] +1 = 8
+    m_axi_arsize <= 3; // Burst_Size = 2^ARSIZE[2:0] = 8
+                       // Total bytes= Burst_Length * Burst_Size = 64 bytes
+    m_axi_arburst <= 2;// Burst_Type: "00" = FIXED; "01" = INCR; "10" = WRAP
+    m_axi_arlock <= 0; // Atomic_Access: '0' Normal; '1' Exclusive
+    m_axi_arcache <= 0;// ARCACHE[0] Bufferable, ARCACHE[1] Cacheable, ARCACHE[2] Read-allocate, ARCACHE[3] Write-allocate
+    m_axi_arprot <= 6; // ARPROT[0] Privileged, ARPROT[1] Non-secure, ARPROT[2] Instruction
+    m_axi_arvalid <= 0;
+    m_axi_rready <= 0;
+    m_axi_acready <= 0;
   end else begin
-    // PC GEN
     if(enable) begin
+      //@@@ pipe_begin_IF @@@
       if(enableF) begin
         if(!StallF) begin
-          pc <= pc + 4; // 4 = 32 bits data
-          PCF <= pc + 4;
+          if(PCSrcE) begin
+            pc <= PCTargetE;
+            PCF <= PCTargetE;
+            $display();
+          end else begin
+            pc <= pc + 4; // 4 = 32 bits data
+            PCF <= pc + 4;
+          end
         end
       end
     end 
@@ -102,18 +282,10 @@ end
 //****** IF ******
 wire [31:0] instrF;
 If IF(
-  .clk(clk),
   .enable(enable),
   .enableF(enableF),
   .PCF(PCF),
-  .instrF(instrF),
-  .m_axi_arready(m_axi_arready),
-  .m_axi_arvalid(m_axi_arvalid),
-  .m_axi_araddr(m_axi_araddr),
-  .m_axi_rdata(m_axi_rdata),
-  .m_axi_rlast(m_axi_rlast),
-  .m_axi_rvalid(m_axi_rvalid),
-  .m_axi_rready(m_axi_rready)
+  .instrF(instrF)
 );
 
 //@@@ pipe_IF_RD @@@
@@ -129,12 +301,13 @@ wire  [63:0] PCD;
 wire  [63:0] PCPlus4D;
 always_ff @ (posedge clk) begin
   enableD <= enableF;
-  if(enableF) begin
+  if(enableD) begin
     if(!StallD) begin
       instrD <= instrF;
       PCD <= PCF;
       PCPlus4D <= PCF + 4;
-    end else if(FlushD) begin
+    end
+    if(FlushD) begin
       instrD <= 0;
       PCD <= 0;
       PCPlus4D <= 0;
@@ -152,7 +325,7 @@ wire [63:0] RD1D;
 wire [63:0] RD2D;
 wire        RegWriteD;
 wire [1:0]  ResultSrcD;
-wire        MemWriteD;
+wire [4:0]  MemWriteReadSizeD;
 wire        JumpD;
 wire        BranchD;
 wire [5:0]  ALUControlD;
@@ -160,6 +333,7 @@ wire        ALUSrcD;
 wire [63:0] ImmExtD;
 wire [4:0]  Rs1D;
 wire [4:0]  Rs2D;
+wire        EcallD;
 rd_wb RD_WB(
   //--- RD ---
   .clk(clk),
@@ -172,7 +346,7 @@ rd_wb RD_WB(
   .instrD(instrD),
   .RegWriteD(RegWriteD),
   .ResultSrcD(ResultSrcD),
-  .MemWriteD(MemWriteD),
+  .MemWriteReadSizeD(MemWriteReadSizeD),
   .JumpD(JumpD),
   .BranchD(BranchD),
   .ALUControlD(ALUControlD),
@@ -180,16 +354,19 @@ rd_wb RD_WB(
   .ImmExtD(ImmExtD),
   .Rs1D(Rs1D),
   .Rs2D(Rs2D),
+  .EcallD(EcallD),
   //--- WB ---
   .enableW(enableW),
   .RdW(RdW),
   .RegWriteW(RegWriteW),
-  .ResultW(ResultW)
+  .ResultW(ResultW),
+  .EcallW(EcallW)
 );
 
 //@@@ pipe_RD_ALU && pipe_WB_end @@@
 wire finishE;
 //--- hazard ---
+wire StallE;
 wire FlushE;
 //--- enable ---
 wire enableE;
@@ -203,7 +380,7 @@ wire [63:0] RD2E;
 //--- control_unit ---
 wire        RegWriteE;
 wire [1:0]  ResultSrcE;
-wire        MemWriteE;
+wire [4:0]  MemWriteReadSizeE;
 wire        JumpE;
 wire        BranchE;
 wire [5:0]  ALUControlE;
@@ -211,36 +388,17 @@ wire        ALUSrcE;
 wire [63:0] ImmExtE;
 wire [4:0]  Rs1E;
 wire [4:0]  Rs2E;
+wire        EcallE;
 always_ff @ (posedge clk) begin
   //--- pipe_RD_ALU ---
   enableE <= enableD;
-  if(enableD) begin
+  if(enableE) begin
     finishE <= finishD;
-    if(FlushE) begin
-      //--- control_unit ---
-      RegWriteE <= 0;
-      ResultSrcE <= 0;
-      MemWriteE <= 0;
-      JumpE <= 0;
-      BranchE <= 0;
-      ALUControlE <= 0;
-      ALUSrcE <= 0;
-      ImmExtE <= 0;
-      Rs1E <= 0;
-      Rs2E <= 0;
-      //--- register_file ---
-      RD1E <= 0;
-      RD2E <= 0;
-      //--- pipe ---
-      RdE <= 0;
-      PCE <= 0;
-      PCPlus4E <= 0;
-    end
-    else begin
+    if(!StallE) begin
       //--- control_unit ---
       RegWriteE <= RegWriteD;
       ResultSrcE <= ResultSrcD;
-      MemWriteE <= MemWriteD;
+      MemWriteReadSizeE <= MemWriteReadSizeD;
       JumpE <= JumpD;
       BranchE <= BranchD;
       ALUControlE <= ALUControlD;
@@ -248,6 +406,7 @@ always_ff @ (posedge clk) begin
       ImmExtE <= ImmExtD;
       Rs1E <= Rs1D;
       Rs2E <= Rs2D;
+      EcallE <= EcallD;
       //--- register_file ---
       RD1E <= RD1D;
       RD2E <= RD2D;
@@ -255,6 +414,28 @@ always_ff @ (posedge clk) begin
       RdE <= instrD[11:7];
       PCE <= PCD;
       PCPlus4E <= PCPlus4D;
+    end
+
+    if(FlushE) begin
+      //--- control_unit ---
+      RegWriteE <= 0;
+      ResultSrcE <= 0;
+      MemWriteReadSizeE <= 0;
+      JumpE <= 0;
+      BranchE <= 0;
+      ALUControlE <= 0;
+      ALUSrcE <= 0;
+      ImmExtE <= 0;
+      Rs1E <= 0;
+      Rs2E <= 0;
+      EcallE <= 0;
+      //--- register_file ---
+      RD1E <= 0;
+      RD2E <= 0;
+      //--- pipe ---
+      RdE <= 0;
+      PCE <= 0;
+      PCPlus4E <= 0;
     end
   end
 
@@ -273,9 +454,8 @@ end
 //****** ALU ******
 wire [1:0]  FrowardAE;
 wire [1:0]  FrowardBE;
-wire        PCSrcE;
-wire [63:0] PCTargetE;
 wire [63:0] ALUResultE;
+wire [63:0] WriteDataE;
 wire [63:0] ALUResultM;
 alu ALU(
   //--- hazard ---
@@ -295,61 +475,96 @@ alu ALU(
   .PCSrcE(PCSrcE),
   .PCTargetE(PCTargetE),
   .ALUResultE(ALUResultE),
-  .ALUResultM(ALUResultM)
+  .WriteDataE(WriteDataE),
+  .ALUResultM(ALUResultM),
+  // use to print
+  .RdE(RdE),
+  .Rs2E(Rs2E)
 );
 
 //@@@ pipe_ALU_MEM @@@
-wire enableM;
 wire finishM;
+//--- hazard ---
+wire StallM;
+//--- enable ---
+wire enableM;
 wire        RegWriteM;
 wire [1:0]  ResultSrcM;
-wire        MemWriteM;
+wire [4:0]  MemWriteReadSizeM;
 wire [63:0] WriteDataM;
 wire [4:0]  RdM;
 wire [63:0] PCPlus4M;
+wire        EcallM;
 always_ff @ (posedge clk) begin
   enableM <= enableE;
-  if(enableE) begin
+  if(enableM) begin
     finishM <= finishE;
-    ALUResultM <= ALUResultE;
-    //--- pipe ---
-    RegWriteM <= RegWriteE;
-    ResultSrcM <= ResultSrcE;
-    MemWriteM <= MemWriteE;
-    WriteDataM <= RD2E;
-    RdM <= RdE;
-    PCPlus4M <= PCPlus4E;
+    if(!StallM) begin
+      ALUResultM <= ALUResultE;
+      //--- pipe ---
+      RegWriteM <= RegWriteE;
+      ResultSrcM <= ResultSrcE;
+      MemWriteReadSizeM <= MemWriteReadSizeE;
+      WriteDataM <= WriteDataE;
+      RdM <= RdE;
+      PCPlus4M <= PCPlus4E;
+      EcallM <= EcallE;
+    end
   end
 end
 
 //****** MEM ******
+wire        Stall;
 wire [63:0] ReadDataM;
 mem MEM(
+  .clk(clk),
   .enableM(enableM),
-  .MemWriteM(MemWriteM),
+  .MemWriteReadSizeM(MemWriteReadSizeM),
   .ALUResultM(ALUResultM),
   .WriteDataM(WriteDataM),
-  .ReadDataM(ReadDataM)
+  .ReadDataM(ReadDataM),
+  .Stall(Stall),
+  .write_dirty(write_dirty),
+  .write_dirty_Data(write_dirty_Data),
+  // Write
+  .m_axi_awaddr(m_axi_awaddr),
+  .m_axi_awvalid(m_axi_awvalid),
+  .m_axi_awready(m_axi_awready),
+  .m_axi_wdata(m_axi_wdata),
+  .m_axi_wstrb(m_axi_wstrb),
+  .m_axi_wlast(m_axi_wlast),
+  .m_axi_wvalid(m_axi_wvalid),
+  .m_axi_wready(m_axi_wready),
+  // use to print
+  .RdM(RdM),
+  .PCPlus4M(PCPlus4M)
 );
 
 //@@@ pipe_MEM_WB @@@
-wire enableW;
 wire finishW;
+//--- hazard ---
+wire StallW;
+//--- enable ---
+wire enableW;
 wire        RegWriteW;
 wire [4:0]  RdW;
 wire [63:0] ResultW;
+wire        EcallW;
 always_ff @ (posedge clk) begin
   enableW <= enableM;
-  if(enableM) begin
+  if(enableW) begin
     finishW <= finishM;
-    case(ResultSrcM)
-      2'b00: ResultW <= ALUResultM;
-      2'b01: ResultW <= ReadDataM;
-      2'b10: ResultW <= PCPlus4M;
-    endcase
-    //--- pipe ---
-    RegWriteW <= RegWriteM;
-    RdW <= RdM;
+    if(!StallW) begin
+      case(ResultSrcM)
+        2'b00: ResultW <= ALUResultM;
+        2'b01: ResultW <= ReadDataM;
+        2'b10: ResultW <= PCPlus4M;
+      endcase
+      //--- pipe ---
+      RegWriteW <= RegWriteM;
+      RdW <= RdM;
+      EcallW <= EcallM;
+    end
   end
 end
 
@@ -366,8 +581,12 @@ hazard Hazard(
   .RegWriteM(RegWriteM),
   .RdW(RdW),
   .RegWriteW(RegWriteW),
+  .Stall(Stall),
   .StallF(StallF),
   .StallD(StallD),
+  .StallE(StallE),
+  .StallM(StallM),
+  .StallW(StallW),
   .FlushD(FlushD),
   .FlushE(FlushE),
   .FrowardAE(FrowardAE),
