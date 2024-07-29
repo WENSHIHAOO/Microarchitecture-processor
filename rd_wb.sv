@@ -3,8 +3,6 @@ module rd_wb
     //****** RD ******
     //--- enable ---
     input  enableD,
-    output JumpD,
-    output BranchD,
     // Superscalar 1
     //--- register_file ---
     output [63:0] RD1D1,
@@ -20,6 +18,8 @@ module rd_wb
     output [4:0]  Rs1D1,
     output [4:0]  Rs2D1,
     output [4:0]  RdD1,
+    output JumpD1,
+    output BranchD1,
     output        EcallD1,
     // Superscalar 2
     //--- register_file ---
@@ -36,6 +36,8 @@ module rd_wb
     output [4:0]  Rs1D2,
     output [4:0]  Rs2D2,
     output [4:0]  RdD2,
+    output JumpD2,
+    output BranchD2,
     output        EcallD2,
     //****** WB ******
     output enableW,
@@ -69,6 +71,8 @@ always_comb begin
         Rs1D1 = 0;
         Rs2D1 = 0;
         RdD1 = 0;
+        JumpD1 = 0;
+        BranchD1 = 0;
         EcallD1 = 0;
         ALUControlD1 = 0;
         case(instrD1[6:0])
@@ -235,7 +239,7 @@ always_comb begin
             end
             //99, Type B
             7'b1100011: begin
-                BranchD = 1;
+                BranchD1 = 1;
                 ImmExtD1 = {{52{instrD1[31]}}, instrD1[7], instrD1[30:25], instrD1[11:8], 1'b0}; // imm_B
                 Rs1D1 = instrD1[19:15];
                 Rs2D1 = instrD1[24:20];
@@ -252,7 +256,7 @@ always_comb begin
             7'b1100111: begin
                 RegWriteD1 = 1;
                 ResultSrcD1 = 2'b10;
-                JumpD = 1;
+                JumpD1 = 1;
                 ALUSrcD1 = 1;
                 ImmExtD1 = {{52{instrD1[31]}}, instrD1[31:20]}; // imm_I
                 Rs1D1 = instrD1[19:15];
@@ -263,7 +267,7 @@ always_comb begin
             7'b1101111: begin
                 RegWriteD1 = 1;
                 ResultSrcD1 = 2'b10;
-                JumpD = 1;
+                JumpD1 = 1;
                 ALUSrcD1 = 1;
                 ImmExtD1 = {{44{instrD1[31]}}, instrD1[19:12], instrD1[20], instrD1[30:21], 1'b0}; // imm_J
                 RdD1 = instrD1[11:7];
@@ -289,6 +293,8 @@ always_comb begin
         Rs1D2 = 0;
         Rs2D2 = 0;
         RdD2 = 0;
+        JumpD2 = 0;
+        BranchD2 = 0;
         EcallD2 = 0;
         ALUControlD2 = 0;
         case(instrD2[6:0])
@@ -455,7 +461,7 @@ always_comb begin
             end
             //99, Type B
             7'b1100011: begin
-                BranchD = 1;
+                BranchD2 = 1;
                 ImmExtD2 = {{52{instrD2[31]}}, instrD2[7], instrD2[30:25], instrD2[11:8], 1'b0}; // imm_B
                 Rs1D2 = instrD2[19:15];
                 Rs2D2 = instrD2[24:20];
@@ -472,7 +478,7 @@ always_comb begin
             7'b1100111: begin
                 RegWriteD2 = 1;
                 ResultSrcD2 = 2'b10;
-                JumpD = 1;
+                JumpD2 = 1;
                 ALUSrcD2 = 1;
                 ImmExtD2 = {{52{instrD2[31]}}, instrD2[31:20]}; // imm_I
                 Rs1D2 = instrD2[19:15];
@@ -483,7 +489,7 @@ always_comb begin
             7'b1101111: begin
                 RegWriteD2 = 1;
                 ResultSrcD2 = 2'b10;
-                JumpD = 1;
+                JumpD2 = 1;
                 ALUSrcD2 = 1;
                 ImmExtD2 = {{44{instrD2[31]}}, instrD2[19:12], instrD2[20], instrD2[30:21], 1'b0}; // imm_J
                 RdD2 = instrD2[11:7];

@@ -48,8 +48,8 @@ reg [t:0] Valid_Tag [S][N];
 reg LRU [S];
 reg Dirty [S][N];
 
-reg [63:0] Victim [16][B];
-reg [64:0] Victim_Valid_Addr [16];
+reg [63:0] Victim [32][B];
+reg [64:0] Victim_Valid_Addr [32];
 
 // Superscalar 1
 // check miss1

@@ -94,7 +94,7 @@ logic [b+y-1:0] block_y;
 logic [2:0]   block_offset;
 logic [63:0]  write_addr;
 logic [63:0]  write_Data [B];
-logic [4:0]   index;
+logic [5:0]   index;
 // use to print
 wire  [63:0]  num_axi;
 always_ff @ (posedge clk) begin
@@ -122,7 +122,7 @@ always_ff @ (posedge clk) begin
     if(fetch_i_d > 0) begin
       if(fetch_i_d == 3) begin
         // Check IF Victim Cache
-        for(int i=0; i<16; i++) begin
+        for(int i=0; i<32; i++) begin
           if(IF.Victim_Valid_Addr[i][64] & (IF.Victim_Valid_Addr[i][63:0]==IF_addr)) begin
             if(IF.Valid_Tag[set][IF.LRU[set]][t]) begin
               write_Data[0] = IF.Victim[i][0];
@@ -164,14 +164,14 @@ always_ff @ (posedge clk) begin
               IF.Data[set][IF.LRU[set]][6] = IF.Victim[i][6];
               IF.Data[set][IF.LRU[set]][7] = IF.Victim[i][7];
             end
-            i = 16;
+            i = 32;
             // Step Done Read
             step = 2;
           end
         end
       end else begin
         // Check MEM Victim Cache
-        for(int i=0; i<16; i++) begin
+        for(int i=0; i<32; i++) begin
           if(MEM.Victim_Valid_Addr[i][64] & (MEM.Victim_Valid_Addr[i][63:0]=={{tag,set}<<(b+y)})) begin
             if(MEM.Valid_Tag[set][MEM.LRU[set]][t]) begin
               write_Data[0] = MEM.Data[set][MEM.LRU[set]][0];
@@ -213,7 +213,7 @@ always_ff @ (posedge clk) begin
               MEM.Data[set][MEM.LRU[set]][7] = MEM.Victim[i][7];
               MEM.Victim_Valid_Addr[i][64] = 0;
             end
-            i = 16;
+            i = 32;
             // Step Done Read
             step = 2;
           end
@@ -238,16 +238,14 @@ always_ff @ (posedge clk) begin
         if(fetch_i_d == 3) begin
           if(IF.Valid_Tag[set][IF.LRU[set]][t]) begin
             // Check IF Victim index
-            index = 17;
-            for(int i=0; i<16; i++) begin
+            index = 32;
+            for(int i=0; i<32; i++) begin
               if(!IF.Victim_Valid_Addr[i][64]) begin
                 index = i;
-                i = 16;
+                i = 32;
               end
             end
-            if(index == 17) begin
-              index = num_clk % 16;
-            end
+            if(index == 32) index = num_clk % 32;
             // Add IF Victim
             IF.Victim[index][0] = IF.Data[set][IF.LRU[set]][0];
             IF.Victim[index][1] = IF.Data[set][IF.LRU[set]][1];
@@ -263,16 +261,14 @@ always_ff @ (posedge clk) begin
         end else begin
           if(MEM.Valid_Tag[set][MEM.LRU[set]][t]) begin
             // Check MEM Victim index
-            index = 17;
-            for(int i=0; i<16; i++) begin
+            index = 32;
+            for(int i=0; i<32; i++) begin
               if(!MEM.Victim_Valid_Addr[i][64]) begin
                 index = i;
-                i = 16;
+                i = 32;
               end
             end
-            if(index == 17) begin
-              index = num_clk % 16;
-            end
+            if(index == 32) index = num_clk % 32;
             // Add MEM Victim
             MEM.Victim[index][0] = MEM.Data[set][MEM.LRU[set]][0];
             MEM.Victim[index][1] = MEM.Data[set][MEM.LRU[set]][1];
@@ -504,6 +500,8 @@ always_ff @ (posedge clk) begin
 end
 
 //****** begin ******
+logic [1:0] B_pc;
+logic [6:0] B_index;
 wire [63:0] pc;
 wire        pc8;
 // Superscalar 1
@@ -516,7 +514,8 @@ wire        enableF;
 wire  StallF;
 // jump & branch
 wire        j_b;
-wire        PCSrcE;
+wire        PCSrcE1;
+wire        PCSrcE2;
 wire [63:0] PCTargetE;
 always_ff @ (posedge clk) begin
   if(reset) begin
@@ -554,7 +553,7 @@ always_ff @ (posedge clk) begin
     m_axi_acready <= 0;
   end else begin
     if(enable) begin
-      if(PCSrcE & (PCTargetE > 0)) begin
+      if((PCSrcE1|PCSrcE2) & (PCTargetE>0)) begin
         $display();
         if(enableF & !StallF) j_b = 1;
         pc = PCTargetE;
@@ -562,6 +561,7 @@ always_ff @ (posedge clk) begin
         PCF1 <= pc;
         // Superscalar 2
         PCF2 <= pc + 4;
+        B_pc = 0;
       end
       //@@@ pipe_begin_IF @@@
       if(enableF) begin
@@ -570,16 +570,37 @@ always_ff @ (posedge clk) begin
             j_b = 0;
           end else begin
             if(pc8) begin
-              pc = pc + 8; // 8 bytes = 64 bits data
+              if(B_pc == 0) pc = pc + 8; // 8 bytes = 64 bits data
             end else begin
-              pc = pc + 4; // 4 bytes = 32 bits data
+              if(B_pc == 0) pc = pc + 4; // 4 bytes = 32 bits data
+              else if(B_pc == 2) pc = PCF2;
             end
             // Superscalar 1
             PCF1 <= pc;
             // Superscalar 2
             PCF2 <= pc + 4;
+            B_pc = 0;
           end
         end
+      end
+
+      //****** Branch Prediction ******
+      B_index = 64;
+      for(int i=0; i<64; i++) begin
+        if(ALU.Valid[i]) begin
+          if(pc == ALU.BIA[i]) begin
+            B_pc = 1;
+            B_index = i;
+            i = 64;
+          end else if((pc+4) == ALU.BIA[i]) begin
+            B_pc = 2;
+            B_index = i;
+          end
+        end
+      end
+      if(B_pc > 0 & B_index < 64) begin
+        $display("!!!!!!!!!!!!!!%d: V:%d, BH:%0x, BIA:%0x, BTA:%0x, PCF1:%0x, PCF2:%0x", B_index, ALU.Valid[B_index], ALU.BH[B_index], ALU.BIA[B_index], ALU.BTA[B_index], pc, pc+4);
+        pc = ALU.BTA[B_index];
       end
     end 
   end
@@ -613,8 +634,6 @@ If #(.N(N),
 );
 
 //@@@ pipe_IF_RD @@@
-wire  JumpD;
-wire  BranchD;
 wire  finishD;
 //--- hazard ---
 wire  StallD;
@@ -636,8 +655,6 @@ wire  [63:0] num_instr;
 always_ff @ (posedge clk) begin
   if(!StallD) enableD <= enableF;
   if(FlushD) begin
-    JumpD = 0;
-    BranchD = 0;
     // Superscalar 1
     instrD1 <= 0;
     PCD1 <= 0;
@@ -648,8 +665,6 @@ always_ff @ (posedge clk) begin
     PCPlus4D2 <= 0;
   end else if(enableF) begin
     if(!FlushD & !StallD) begin
-      JumpD = 0;
-      BranchD = 0;
       // Superscalar 1
       instrD1 <= instrF1;
       PCD1 <= PCF1;
@@ -684,6 +699,8 @@ wire [63:0] ImmExtD1;
 wire [4:0]  Rs1D1;
 wire [4:0]  Rs2D1;
 wire [4:0]  RdD1;
+wire  JumpD1;
+wire  BranchD1;
 wire        EcallD1;
 // Superscalar 2
 wire [63:0] RD1D2;
@@ -697,13 +714,13 @@ wire [63:0] ImmExtD2;
 wire [4:0]  Rs1D2;
 wire [4:0]  Rs2D2;
 wire [4:0]  RdD2;
+wire  JumpD2;
+wire  BranchD2;
 wire        EcallD2;
 rd_wb RD_WB(
   //****** RD ******
   //--- enable ---
   .enableD(enableD),
-  .JumpD(JumpD),
-  .BranchD(BranchD),
   // Superscalar 1
   //--- register_file ---
   .RD1D1(RD1D1),
@@ -719,6 +736,8 @@ rd_wb RD_WB(
   .Rs1D1(Rs1D1),
   .Rs2D1(Rs2D1),
   .RdD1(RdD1),
+  .JumpD1(JumpD1),
+  .BranchD1(BranchD1),
   .EcallD1(EcallD1),
   // Superscalar 2
   //--- register_file ---
@@ -735,6 +754,8 @@ rd_wb RD_WB(
   .Rs1D2(Rs1D2),
   .Rs2D2(Rs2D2),
   .RdD2(RdD2),
+  .JumpD2(JumpD2),
+  .BranchD2(BranchD2),
   .EcallD2(EcallD2),
   //****** WB ******
   .enableW(enableW),
@@ -763,8 +784,6 @@ wire StallE;
 wire FlushE;
 //--- enable ---
 wire enableE;
-wire JumpE;
-wire BranchE;
 // Superscalar 1
 //--- pipe ---
 wire [4:0]  RdE1;
@@ -782,6 +801,8 @@ wire        ALUSrcE1;
 wire [63:0] ImmExtE1;
 wire [4:0]  Rs1E1;
 wire [4:0]  Rs2E1;
+wire JumpE1;
+wire BranchE1;
 wire        EcallE1;
 // Superscalar 2
 //--- pipe ---
@@ -800,6 +821,8 @@ wire        ALUSrcE2;
 wire [63:0] ImmExtE2;
 wire [4:0]  Rs1E2;
 wire [4:0]  Rs2E2;
+wire JumpE2;
+wire BranchE2;
 wire        EcallE2;
 // use to print
 wire [31:0] instrE1;
@@ -808,8 +831,6 @@ always_ff @ (posedge clk) begin
   //--- pipe_RD_ALU ---
   if(!StallE) enableE <= enableD;
   if(FlushE) begin
-    JumpE <= 0;
-    BranchE <= 0;
     // Superscalar 1
     //--- control_unit ---
     RegWriteE1 <= 0;
@@ -820,6 +841,8 @@ always_ff @ (posedge clk) begin
     ImmExtE1 <= 0;
     Rs1E1 <= 0;
     Rs2E1 <= 0;
+    JumpE1 <= 0;
+    BranchE1 <= 0;
     EcallE1 <= 0;
     //--- register_file ---
     RD1E1 <= 0;
@@ -838,6 +861,8 @@ always_ff @ (posedge clk) begin
     ImmExtE2 <= 0;
     Rs1E2 <= 0;
     Rs2E2 <= 0;
+    JumpE2 <= 0;
+    BranchE2 <= 0;
     EcallE2 <= 0;
     //--- register_file ---
     RD1E2 <= 0;
@@ -852,8 +877,6 @@ always_ff @ (posedge clk) begin
   end else if(enableD) begin
     if(!FlushE & !StallE) begin
       finishE <= finishD;
-      JumpE <= JumpD;
-      BranchE <= BranchD;
       // Superscalar 1
       //--- control_unit ---
       RegWriteE1 <= RegWriteD1;
@@ -864,6 +887,8 @@ always_ff @ (posedge clk) begin
       ImmExtE1 <= ImmExtD1;
       Rs1E1 <= Rs1D1;
       Rs2E1 <= Rs2D1;
+      JumpE1 <= JumpD1;
+      BranchE1 <= BranchD1;
       EcallE1 <= EcallD1;
       //--- register_file ---
       RD1E1 <= RD1D1;
@@ -882,6 +907,8 @@ always_ff @ (posedge clk) begin
       ImmExtE2 <= ImmExtD2;
       Rs1E2 <= Rs1D2;
       Rs2E2 <= Rs2D2;
+      JumpE2 <= JumpD2;
+      BranchE2 <= BranchD2;
       EcallE2 <= EcallD2;
       //--- register_file ---
       RD1E2 <= RD1D2;
@@ -900,13 +927,15 @@ always_ff @ (posedge clk) begin
   if(enableW) begin
     if(!StallW) begin
       if(RdW1==10 | RdW2==10) begin
-          for(int i=0; i<32; i++) begin
-              if(i<16) begin
-                $display("IF.Victim %d: V:%d, Addr:%0x, Data0:%0x", i, IF.Victim_Valid_Addr[i][64], IF.Victim_Valid_Addr[i][63:0], IF.Victim[i][0]);
-                $display("MEM.Victim %d: V:%d, Addr:%0x, Data0:%0x", i, MEM.Victim_Valid_Addr[i][64], MEM.Victim_Valid_Addr[i][63:0], MEM.Victim[i][0]);
-              end
-              $display("%2.2d:  0x%x (%0d)", i, RD_WB.registers[i], RD_WB.registers[i]);
-          end
+        /*
+        for(int i=0; i<32; i++) begin
+          $display("IF.Victim %d: V:%d, Addr:%0x, Data0:%0x", i, IF.Victim_Valid_Addr[i][64], IF.Victim_Valid_Addr[i][63:0], IF.Victim[i][0]);
+          $display("MEM.Victim %d: V:%d, Addr:%0x, Data0:%0x", i, MEM.Victim_Valid_Addr[i][64], MEM.Victim_Valid_Addr[i][63:0], MEM.Victim[i][0]);
+        end
+        */
+        for(int i=0; i<32; i++) begin
+            $display("%2.2d:  0x%x (%0d)", i, RD_WB.registers[i], RD_WB.registers[i]);
+        end
       end
     end
     //****** Finish ******
@@ -933,17 +962,22 @@ wire [63:0] ALUResultE2;
 wire [63:0] WriteDataE2;
 wire [63:0] ALUResultM2;
 alu ALU(
+  .clk(clk),
   .enableE(enableE),
-  .PCSrcE(PCSrcE),
+  .StallE(StallE),
+  .PCSrcE1(PCSrcE1),
+  .PCSrcE2(PCSrcE2),
   .PCTargetE(PCTargetE),
-  .JumpE(JumpE),
-  .BranchE(BranchE),
+  .PCD1(PCD1),
+  .num_clk(num_clk),
   // Superscalar 1
   //--- hazard ---
   .FrowardAE1(FrowardAE1),
   .FrowardBE1(FrowardBE1),
   .ResultW1(ResultW1),
   //--- ALU ---
+  .JumpE1(JumpE1),
+  .BranchE1(BranchE1),
   .RD1E1(RD1E1),
   .RD2E1(RD2E1),
   .PCE1(PCE1),
@@ -962,6 +996,8 @@ alu ALU(
   .FrowardBE2(FrowardBE2),
   .ResultW2(ResultW2),
   //--- ALU ---
+  .JumpE2(JumpE2),
+  .BranchE2(BranchE2),
   .RD1E2(RD1E2),
   .RD2E2(RD2E2),
   .PCE2(PCE2),
@@ -1126,7 +1162,8 @@ end
 //****** Hazard_Unit ******
 hazard Hazard(
   .enableD(enableD),
-  .PCSrcE(PCSrcE),
+  .PCSrcE1(PCSrcE1),
+  .PCSrcE2(PCSrcE2),
   .StallF(StallF),
   .StallD(StallD),
   .StallE(StallE),

@@ -1,17 +1,22 @@
 module alu
 (
   //****** ALU ******
+  input  clk,
   input  enableE,
-  output        PCSrcE,
+  input  StallE,
+  output        PCSrcE1,
+  output        PCSrcE2,
   output [63:0] PCTargetE,
-  input         JumpE,
-  input         BranchE,
+  input  [63:0] PCD1,
+  input  [63:0] num_clk,
   // Superscalar 1
   //--- hazard ---
   input  [2:0]  FrowardAE1,
   input  [2:0]  FrowardBE1,
   input  [63:0] ResultW1,
   //--- ALU ---
+  input         JumpE1,
+  input         BranchE1,
   input  [63:0] RD1E1,
   input  [63:0] RD2E1,
   input  [63:0] PCE1,
@@ -30,6 +35,8 @@ module alu
   input  [2:0]  FrowardBE2,
   input  [63:0] ResultW2,
   //--- ALU ---
+  input         JumpE2,
+  input         BranchE2,
   input  [63:0] RD1E2,
   input  [63:0] RD2E2,
   input  [63:0] PCE2,
@@ -45,8 +52,30 @@ module alu
   input  [31:0] instrE1,
   input  [31:0] instrE2
 );
-logic                ZeroE;
+//****** Branch Prediction ******
+reg          Valid [64];
+reg   [1:0]  BH    [64]; // Branch history
+reg   [63:0] BIA   [64]; // Branch instruction address field
+reg   [63:0] BTA   [64]; // Branch target address field
+logic [6:0]  index;
+logic        exist;
+logic        V; // Valid
+logic [1:0]  H; // BH
+logic [63:0] I; // BIA
+logic [63:0] T; // BTA
+always_ff @ (posedge clk) begin
+  if(V & enableE & !StallE) begin
+    Valid[index] <= V;
+    BH[index] <= H;
+    BIA[index] <= I;
+    BTA[index] <= T;
+    V = 0;
+    $display("BTB!!!!!!!!!!!%x, %x, %x, %x", V, H, I, T);
+  end
+end
+//****** ALU ******
 // Superscalar 1
+logic        ZeroE1;
 logic        [63:0]  SrcAE1;
 logic        [63:0]  SrcBE1;
 logic signed [63:0]  SrcAE_sign1;
@@ -112,6 +141,7 @@ always_comb begin
       SrcAE1 = PCE1;
     end
     //jump & branch
+    ZeroE1 = JumpE1;
     if(ALUControlE1[4:0] > 20) begin
       if(ALUControlE1[4:0] == 21) begin
         PCTargetE = SrcAE1 + ImmExtE1;
@@ -262,28 +292,28 @@ always_comb begin
           $display("%0x: jal %0d: 0x%0x", PCE1, RdE1, PCTargetE);
         end
         23: begin
-          ZeroE = (SrcAE1 == SrcBE1) ? 1 : 0; // beq
-          $display("%0x: beq %0d, %0d, 0x%0x = %0x", PCE1, SrcAE1, SrcBE1, PCTargetE, ZeroE);
+          ZeroE1 = (SrcAE1 == SrcBE1) ? 1 : 0; // beq
+          $display("%0x: beq %0d, %0d, 0x%0x = %0x", PCE1, SrcAE1, SrcBE1, PCTargetE, ZeroE1);
         end
         24: begin
-          ZeroE = (SrcAE1 != SrcBE1) ? 1 : 0; // bne
-          $display("%0x: bne %0d, %0d, 0x%0x = %0x", PCE1, SrcAE1, SrcBE1, PCTargetE, ZeroE);
+          ZeroE1 = (SrcAE1 != SrcBE1) ? 1 : 0; // bne
+          $display("%0x: bne %0d, %0d, 0x%0x = %0x", PCE1, SrcAE1, SrcBE1, PCTargetE, ZeroE1);
         end
         25: begin
-          ZeroE = (SrcAE_sign1 < SrcBE_sign1) ? 1 : 0; // blt
-          $display("%0x: blt %0d, %0d, 0x%0x = %0x", PCE1, SrcAE_sign1, SrcBE_sign1, PCTargetE, ZeroE);
+          ZeroE1 = (SrcAE_sign1 < SrcBE_sign1) ? 1 : 0; // blt
+          $display("%0x: blt %0d, %0d, 0x%0x = %0x", PCE1, SrcAE_sign1, SrcBE_sign1, PCTargetE, ZeroE1);
         end
         26: begin
-          ZeroE = (SrcAE_sign1 >= SrcBE_sign1) ? 1 : 0; // bge
-          $display("%0x: bge %0d, %0d, 0x%0x = %0x", PCE1, SrcAE_sign1, SrcBE_sign1, PCTargetE, ZeroE);
+          ZeroE1 = (SrcAE_sign1 >= SrcBE_sign1) ? 1 : 0; // bge
+          $display("%0x: bge %0d, %0d, 0x%0x = %0x", PCE1, SrcAE_sign1, SrcBE_sign1, PCTargetE, ZeroE1);
         end
         27: begin
-          ZeroE = (SrcAE1 < SrcBE1) ? 1 : 0; // bltu
-          $display("%0x: bltu %0d, %0d, 0x%0x = %0x", PCE1, SrcAE1, SrcBE1, PCTargetE, ZeroE);
+          ZeroE1 = (SrcAE1 < SrcBE1) ? 1 : 0; // bltu
+          $display("%0x: bltu %0d, %0d, 0x%0x = %0x", PCE1, SrcAE1, SrcBE1, PCTargetE, ZeroE1);
         end
         28: begin
-          ZeroE = (SrcAE1 >= SrcBE1) ? 1 : 0; // bgeu
-          $display("%0x: bgeu %0d, %0d, 0x%0x = %0x", PCE1, SrcAE1, SrcBE1, PCTargetE, ZeroE);
+          ZeroE1 = (SrcAE1 >= SrcBE1) ? 1 : 0; // bgeu
+          $display("%0x: bgeu %0d, %0d, 0x%0x = %0x", PCE1, SrcAE1, SrcBE1, PCTargetE, ZeroE1);
         end
         default: begin
           ALUResultE1 = 0;
@@ -291,11 +321,61 @@ always_comb begin
         end
       endcase
     end
-    PCSrcE = JumpE | (BranchE & ZeroE);
+    //****** Branch Prediction ******
+    PCSrcE1 = 0;
+    if(ZeroE1) begin // JumpE == 1 | (BranchE == 1 & Result of BranchE == True)
+      index = 64;
+      exist = 0;
+      for(int i=0; i<64; i++) begin
+        $display("%d: V:%d, BH:%0x, BIA:%0x, BTA:%0x", i, Valid[i], BH[i], BIA[i], BTA[i]);
+        if(Valid[i]) begin
+          if(BIA[i] == PCE1) begin
+            if(BTA[i] == PCTargetE) begin
+              if(BH[i] < 3) begin
+                V = 1;
+                H = BH[i]+1;
+                I = BIA[i];
+                T = BTA[i];
+              end
+            end else begin
+              if(BH[i] > 1) begin
+                H = BH[i]-1;
+                T = BTA[i];
+              end else begin
+                H = 1;
+                T = PCTargetE;
+              end
+              V = 1;
+              I = BIA[i];
+            end
+            exist = 1;
+            index = i;
+            i = 64;
+          end
+        end else index = i;
+      end
+      if(index == 64) index = num_clk % 64;
+      if(!exist) begin
+        V = 1;
+        H = 1;
+        I = PCE1;
+        T = PCTargetE;
+      end
+      if(PCD1 != PCTargetE) PCSrcE1 = 1;
+    end else begin // JumpE == 0 | BranchE == 0 | (BranchE == 1 & Result of BranchE == False)
+      if(BranchE1) begin
+        if(PCD1 != PCE1 + 4) begin
+          PCSrcE1 = 1;
+          PCTargetE = PCE1 + 4;
+        end
+      end
+    end
+    //PCSrcE = JumpE | (BranchE & ZeroE);
   end
 end
 
 // Superscalar 2
+logic        ZeroE2;
 logic        [63:0]  SrcAE2;
 logic        [63:0]  SrcBE2;
 logic signed [63:0]  SrcAE_sign2;
@@ -331,6 +411,7 @@ always_comb begin
       SrcAE2 = PCE2;
     end
     //jump & branch
+    ZeroE2 = JumpE2;
     if(ALUControlE2[4:0] > 20) begin
       if(ALUControlE2[4:0] == 21) begin
         PCTargetE = SrcAE2 + ImmExtE2;
@@ -481,28 +562,28 @@ always_comb begin
           $display("%0x: jal %0d: 0x%0x", PCE2, RdE2, PCTargetE);
         end
         23: begin
-          ZeroE = (SrcAE2 == SrcBE2) ? 1 : 0; // beq
-          $display("%0x: beq %0d, %0d, 0x%0x = %0x", PCE2, SrcAE2, SrcBE2, PCTargetE, ZeroE);
+          ZeroE2 = (SrcAE2 == SrcBE2) ? 1 : 0; // beq
+          $display("%0x: beq %0d, %0d, 0x%0x = %0x", PCE2, SrcAE2, SrcBE2, PCTargetE, ZeroE2);
         end
         24: begin
-          ZeroE = (SrcAE2 != SrcBE2) ? 1 : 0; // bne
-          $display("%0x: bne %0d, %0d, 0x%0x = %0x", PCE2, SrcAE2, SrcBE2, PCTargetE, ZeroE);
+          ZeroE2 = (SrcAE2 != SrcBE2) ? 1 : 0; // bne
+          $display("%0x: bne %0d, %0d, 0x%0x = %0x", PCE2, SrcAE2, SrcBE2, PCTargetE, ZeroE2);
         end
         25: begin
-          ZeroE = (SrcAE_sign2 < SrcBE_sign2) ? 1 : 0; // blt
-          $display("%0x: blt %0d, %0d, 0x%0x = %0x", PCE2, SrcAE_sign2, SrcBE_sign2, PCTargetE, ZeroE);
+          ZeroE2 = (SrcAE_sign2 < SrcBE_sign2) ? 1 : 0; // blt
+          $display("%0x: blt %0d, %0d, 0x%0x = %0x", PCE2, SrcAE_sign2, SrcBE_sign2, PCTargetE, ZeroE2);
         end
         26: begin
-          ZeroE = (SrcAE_sign2 >= SrcBE_sign2) ? 1 : 0; // bge
-          $display("%0x: bge %0d, %0d, 0x%0x = %0x", PCE2, SrcAE_sign2, SrcBE_sign2, PCTargetE, ZeroE);
+          ZeroE2 = (SrcAE_sign2 >= SrcBE_sign2) ? 1 : 0; // bge
+          $display("%0x: bge %0d, %0d, 0x%0x = %0x", PCE2, SrcAE_sign2, SrcBE_sign2, PCTargetE, ZeroE2);
         end
         27: begin
-          ZeroE = (SrcAE2 < SrcBE2) ? 1 : 0; // bltu
-          $display("%0x: bltu %0d, %0d, 0x%0x = %0x", PCE2, SrcAE2, SrcBE2, PCTargetE, ZeroE);
+          ZeroE2 = (SrcAE2 < SrcBE2) ? 1 : 0; // bltu
+          $display("%0x: bltu %0d, %0d, 0x%0x = %0x", PCE2, SrcAE2, SrcBE2, PCTargetE, ZeroE2);
         end
         28: begin
-          ZeroE = (SrcAE2 >= SrcBE2) ? 1 : 0; // bgeu
-          $display("%0x: bgeu %0d, %0d, 0x%0x = %0x", PCE2, SrcAE2, SrcBE2, PCTargetE, ZeroE);
+          ZeroE2 = (SrcAE2 >= SrcBE2) ? 1 : 0; // bgeu
+          $display("%0x: bgeu %0d, %0d, 0x%0x = %0x", PCE2, SrcAE2, SrcBE2, PCTargetE, ZeroE2);
         end
         default: begin
           ALUResultE2 = 0;
@@ -510,7 +591,56 @@ always_comb begin
         end
       endcase
     end
-    PCSrcE = JumpE | (BranchE & ZeroE);
+    //****** Branch Prediction ******
+    PCSrcE2 = 0;
+    if(ZeroE2) begin // JumpE == 1 | (BranchE == 1 & Result of BranchE == True）
+      index = 64;
+      exist = 0;
+      for(int i=0; i<64; i++) begin
+        $display("%d: V:%d, BH:%0x, BIA:%0x, BTA:%0x", i, Valid[i], BH[i], BIA[i], BTA[i]);
+        if(Valid[i]) begin
+          if(BIA[i] == PCE2) begin
+            if(BTA[i] == PCTargetE) begin
+              if(BH[i] < 3) begin
+                V = 1;
+                H = BH[i]+1;
+                I = BIA[i];
+                T = BTA[i];
+              end
+            end else begin
+              if(BH[i] > 1) begin
+                H = BH[i]-1;
+                T = BTA[i];
+              end else begin
+                H = 1;
+                T = PCTargetE;
+              end
+              V = 1;
+              I = BIA[i];
+            end
+            exist = 1;
+            index = i;
+            i = 64;
+          end
+        end else index = i;
+      end
+      if(index == 64) index = num_clk % 64;
+      if(!exist) begin
+        V = 1;
+        H = 1;
+        I = PCE2;
+        T = PCTargetE;
+      end
+      if(PCD1 != PCTargetE) PCSrcE2 = 1;
+    end else begin // JumpE == 0 | BranchE == 0 | (BranchE == 1 & Result of BranchE == False)
+      if(BranchE2) begin
+        if(PCD1 != PCE2 + 4) begin
+          PCTargetE = PCE2 + 4;
+          PCSrcE2 = 1;
+        end
+      end
+    end
+    //PCSrcE = JumpE | (BranchE & ZeroE);
   end
 end
 endmodule

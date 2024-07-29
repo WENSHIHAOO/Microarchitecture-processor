@@ -2,7 +2,8 @@ module hazard
 (
     //****** Hazard_Unit ******
     input  enableD,
-    input  PCSrcE,
+    input  PCSrcE1,
+    input  PCSrcE2,
     output StallF,
     output StallD,
     output StallE,
@@ -95,7 +96,7 @@ always_comb begin
     StallM = Stall;
     StallW = Stall;
     // branch hazard
-    FlushD = !Stall & PCSrcE;
-    FlushE = !Stall & (PCSrcE | loadHazard | ecallHazard);
+    FlushD = !Stall & (PCSrcE1 | PCSrcE2);
+    FlushE = !Stall & (PCSrcE1 | PCSrcE2 | loadHazard | ecallHazard);
 end
 endmodule
