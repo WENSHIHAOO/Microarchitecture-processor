@@ -164,7 +164,7 @@ always_comb begin
         end
         default: begin
           ALUResultE1 = 0;
-          if(instrE1 > 0) $display("Invalid1 %0x: '%x'", PCE1, instrE1);
+          $display("Invalid1 %0x: '%x'", PCE1, instrE1);
         end
       endcase
       ALUResultE1 = {{32{ALUResultE1[31]}}, ALUResultE1[31:0]};
@@ -184,7 +184,7 @@ always_comb begin
         end
         4: begin
           ALUResultE1 = SrcAE_sign1 + SrcBE_sign1; // add addi load save
-          $display("%0x: add addi load save %0d(s%0d): %0d, %0d = %0x", PCE1, RdE1, Rs2E1, SrcAE_sign1, SrcBE_sign1, ALUResultE1); 
+          $display("%0x: add addi load save %0d(s%0d): %0d + %0d = %0x: %0x", PCE1, RdE1, Rs2E1, SrcAE_sign1, SrcBE_sign1, ALUResultE1, WriteDataE1); 
         end
         5: begin
           ALUResultE1 = SrcAE_sign1 - SrcBE_sign1; // sub
@@ -287,7 +287,7 @@ always_comb begin
         end
         default: begin
           ALUResultE1 = 0;
-          if(instrE1 > 0) $display("Invalid1 %0x: '%x'", PCE1, instrE1);
+          $display("Invalid1 %0x: '%x'", PCE1, instrE1);
         end
       endcase
     end
@@ -383,7 +383,7 @@ always_comb begin
         end
         default: begin
           ALUResultE2 = 0;
-          if(instrE2 > 0) $display("Invalid2 %0x: '%x'", PCE2, instrE2);
+          $display("Invalid2 %0x: '%x'", PCE2, instrE2);
         end
       endcase
       ALUResultE2 = {{32{ALUResultE2[31]}}, ALUResultE2[31:0]};
@@ -403,7 +403,7 @@ always_comb begin
         end
         4: begin
           ALUResultE2 = SrcAE_sign2 + SrcBE_sign2; // add addi load save
-          $display("%0x: add addi load save %0d(s%0d): %0d, %0d = %0x", PCE2, RdE2, Rs2E2, SrcAE_sign2, SrcBE_sign2, ALUResultE2); 
+          $display("%0x: add addi load save %0d(s%0d): %0d + %0d = %0x: %0x", PCE2, RdE2, Rs2E2, SrcAE_sign2, SrcBE_sign2, ALUResultE2, WriteDataE2); 
         end
         5: begin
           ALUResultE2 = SrcAE_sign2 - SrcBE_sign2; // sub
@@ -506,7 +506,7 @@ always_comb begin
         end
         default: begin
           ALUResultE2 = 0;
-          if(instrE2 > 0) $display("Invalid2 %0x: '%x'", PCE2, instrE2);
+          $display("Invalid2 %0x: '%x'", PCE2, instrE2);
         end
       endcase
     end

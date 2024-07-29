@@ -35,9 +35,12 @@ logic [b-1:0] block1 = PCF1[b+y-1   : y];
 logic [t-1:0] tag2   = PCF2[63      : s+b+y];
 logic [s-1:0] set2   = PCF2[s+b+y-1 : b+y];
 logic [b-1:0] block2 = PCF2[b+y-1   : y];
-always_ff @ (posedge clk) begin
+always_comb begin
     if(enable) begin
         // Superscalar 1
+        //$display("IF: addr(%0d): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({PCF1[63:3], 3'b000}), 
+        //    Valid_Tag[PCF1[s+b+y-1 : b+y]][0][t], {Valid_Tag[PCF1[s+b+y-1 : b+y]][0][t-1:0], PCF1[s+b+y-1 : 0]}, Data[PCF1[s+b+y-1 : b+y]][0][PCF1[b+y-1 : y]], 
+        //    Valid_Tag[PCF1[s+b+y-1 : b+y]][1][t], {Valid_Tag[PCF1[s+b+y-1 : b+y]][1][t-1:0], PCF1[s+b+y-1 : 0]}, Data[PCF1[s+b+y-1 : b+y]][1][PCF1[b+y-1 : y]]);
         if(Valid_Tag[set1][0][t] & (Valid_Tag[set1][0][t-1:0] == tag1)) begin
             //$display("IF: addr(%0d): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({PCF1[63:3], 3'b000}), 
             //Valid_Tag[PCF1[s+b+y-1 : b+y]][0][t], {Valid_Tag[PCF1[s+b+y-1 : b+y]][0][t-1:0], PCF1[s+b+y-1 : 0]}, Data[PCF1[s+b+y-1 : b+y]][0][PCF1[b+y-1 : y]], 
@@ -48,6 +51,7 @@ always_ff @ (posedge clk) begin
                 instrF1 = Data[set1][0][block1][31:0];
             end
             LRU[set1] = 1;
+            IF_miss = 0;
         end
         else if(Valid_Tag[set1][1][t] & (Valid_Tag[set1][1][t-1:0] == tag1)) begin
             //$display("IF: addr(%0d): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({PCF1[63:3], 3'b000}), 
@@ -59,9 +63,10 @@ always_ff @ (posedge clk) begin
                 instrF1 = Data[set1][1][block1][31:0];
             end
             LRU[set1] = 0;
+            IF_miss = 0;
         end
         else begin
-            if(!IF_miss) IF_addr = PCF1;
+            IF_addr = PCF1;
             enableF = 0;
             IF_miss = 1;
         end

@@ -18,6 +18,8 @@ module mem
     output        MEM_miss2,
     output [63:0] MEM_addr1,
     output [63:0] MEM_addr2,
+    output [63:0] Hazard_addr1,
+    output [63:0] Hazard_addr2,
     output        MEM_Write1,
     output [2:0]  MEM_Size1,
     output [63:0] MEM_Data1,
@@ -48,40 +50,77 @@ reg Dirty [S][N];
 
 // Superscalar 1
 // check miss1
-logic [t-1:0] tag1   = ALUResultM1[63      : s+b+y];
-logic [s-1:0] set1   = ALUResultM1[s+b+y-1 : b+y];
-logic [b-1:0] block1 = ALUResultM1[b+y-1   : y];
-always_ff @ (posedge clk) begin
+logic [t-1:0] tag1   = ALUResultM1[63     :s+b+y];
+logic [s-1:0] set1   = ALUResultM1[s+b+y-1:b+y];
+logic [b-1:0] block1 = ALUResultM1[b+y-1  :y];
+// Read & miss
+always_comb begin
     if(enableM) begin
-        // Read
-        if(MemWriteReadSizeM1[3]) begin
-            // Read 64 bit data
-            if(Valid_Tag[set1][0][t] & (Valid_Tag[set1][0][t-1:0] == tag1)) begin
-                $display("------addr: %0d(%0x): V0:%0d addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({ALUResultM1[63:3], 3'b000}),{ALUResultM1[63:3], 3'b000}, 
-                        Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][0][block1], 
-                        Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][1][block1]);
+        // Read 64 bit data
+        if(Valid_Tag[set1][0][t] & (Valid_Tag[set1][0][t-1:0] == tag1)) begin
+            if(MemWriteReadSizeM1[3]) begin
                 ReadDataM1 = Data[set1][0][block1]; // 3'b011 // ld
                 LRU[set1] = 1;
             end
-            else if(Valid_Tag[set1][1][t] & (Valid_Tag[set1][1][t-1:0] == tag1)) begin
-                $display("------addr: %0d(%0x): V0:%0d addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({ALUResultM1[63:3], 3'b000}),{ALUResultM1[63:3], 3'b000}, 
-                        Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][0][block1], 
-                        Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][1][block1]);
+        end
+        else if(Valid_Tag[set1][1][t] & (Valid_Tag[set1][1][t-1:0] == tag1)) begin
+            if(MemWriteReadSizeM1[3]) begin
                 ReadDataM1 = Data[set1][1][block1]; // 3'b011 // ld
                 LRU[set1] = 0;
             end
-            else begin
+        end
+        else begin
+            if(MemWriteReadSizeM1[3]) begin
                 if(!((MemWriteReadSizeM2[3]|MemWriteReadSizeM2[4]) & (ALUResultM1[63:b+y]==ALUResultM2[63:b+y]))) begin
-                    if(!(MEM_miss2 & (MEM_addr2==ALUResultM1)))begin
+                    //$display("read miss------addr: %0d(%0x): V0:%0d addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({ALUResultM1[63:3], 3'b000}),{ALUResultM1[63:3], 3'b000}, 
+                    //    Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][0][block1], 
+                    //    Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][1][block1]);
+                    //MEM_addr1 = ALUResultM1;
+                    //MEM_miss1 = 1;
+                    //Stall_miss1 = 1;
+
+                    //if(MEM_miss2 & (MEM_addr2==ALUResultM1)) Stall_miss2 = 1;
+                    //else begin
                         $display("read miss------addr: %0d(%0x): V0:%0d addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({ALUResultM1[63:3], 3'b000}),{ALUResultM1[63:3], 3'b000}, 
-                            Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][0][block1], 
-                            Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][1][block1]);
-                        MEM_addr1 <= ALUResultM1;
-                        MEM_miss1 <= 1;
-                    end
+                        Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][0][block1], 
+                        Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][1][block1]);
+                        MEM_addr1 = ALUResultM1;
+                        MEM_miss1 = 1;
+                        Stall_miss1 = 1;
+                    //end
+                end
+            end else if(MemWriteReadSizeM1[4]) begin
+                if(!(MemWriteReadSizeM2[4] & (ALUResultM1 == ALUResultM2))) begin 
+                    $display("write miss------addr: %0d(%0x): V0:%0d addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({ALUResultM1[63:3], 3'b000}),{ALUResultM1[63:3], 3'b000}, 
+                        Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][0][block1], 
+                        Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][1][block1]);
+                    //MEM_Write1 = 1;
+                    //MEM_Size1 = MemWriteReadSizeM1[2:0];
+                    //MEM_Data1 = WriteDataM1;
+                    //MEM_addr1 = ALUResultM1;
+                    //MEM_miss1 = 1;
+                    //Stall_miss1 = 1;
+
+                    //if(MEM_miss2 & (MEM_addr2==ALUResultM1)) Stall_miss2 = 1;
+                    //else begin
+                        if(MEM_miss1) Stall_miss1 = 1;
+                        else begin
+                            //$display("write miss------addr: %0d(%0x): V0:%0d addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({ALUResultM1[63:3], 3'b000}),{ALUResultM1[63:3], 3'b000}, 
+                            //Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][0][block1], 
+                            //Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][1][block1]);
+                            MEM_Write1 = 1;
+                            MEM_Size1 = MemWriteReadSizeM1[2:0];
+                            MEM_Data1 = WriteDataM1;
+                            MEM_addr1 = ALUResultM1;
+                            Hazard_addr1 = ALUResultM1;
+                            MEM_miss1 = 1;
+                        end
+                    //end
                 end
             end
-            // Size
+        end
+        // Size
+        if(MemWriteReadSizeM1[3]) begin
             case(MemWriteReadSizeM1[2:0])
                 3'b000: begin
                     ReadDataM1 = {{56{ReadDataM1[8*ALUResultM1[2:0]+7]}}, ReadDataM1[8*ALUResultM1[2:0]+:8]};   // lb
@@ -111,22 +150,58 @@ always_ff @ (posedge clk) begin
                     $display("ld %0x: x%0d = addr: %0d(%0x) = %0d(%0x)", PCPlus4M1-4, RdM1, $signed({ALUResultM1[63:3], 3'b000}),{ALUResultM1[63:3], 3'b000}, ReadDataM1,ReadDataM1);
                 end
             endcase
+            $display("------addr: %0d(%0x): V0:%0d addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({ALUResultM1[63:3], 3'b000}),{ALUResultM1[63:3], 3'b000}, 
+                    Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][0][block1], 
+                    Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][1][block1]);
+            if(!MEM_miss1) Stall_miss1 = 0;
+        end else if(!MEM_miss1 & MemWriteReadSizeM1[4] & !(MemWriteReadSizeM2[4] & (ALUResultM1 == ALUResultM2))) Stall_miss1 = 0;
+    end
+end
+
+// Write
+/*
+always_comb begin
+    if(MemWriteReadSizeM1[4]) begin
+        if(!(MemWriteReadSizeM2[4] & (ALUResultM1 == ALUResultM2))) begin 
+            if(!(Valid_Tag[set1][0][t] & (Valid_Tag[set1][0][t-1:0] == tag1)) & !(Valid_Tag[set1][1][t] & (Valid_Tag[set1][1][t-1:0] == tag1))) begin
+                if(!((MemWriteReadSizeM2[3]|MemWriteReadSizeM2[4]) & (ALUResultM1[63:b+y]==ALUResultM2[63:b+y]))) begin
+                    $display("write miss------addr: %0d(%0x): V0:%0d addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({ALUResultM1[63:3], 3'b000}),{ALUResultM1[63:3], 3'b000}, 
+                        Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][0][block1], 
+                        Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][1][block1]);
+                    MEM_addr1 = ALUResultM1;
+                    MEM_miss1 = 1;
+                    Stall_miss1 = 1;
+                end
+            end
+            if(!MEM_miss1) begin
+                Stall_miss1 = 0;
+            end
         end
-        // Write
-        else if(MemWriteReadSizeM1[4]) begin
+    end
+end
+*/
+always_ff @ (posedge clk) begin
+    if(enableM) begin
+        if(MemWriteReadSizeM1[4]) begin
             if(!(MemWriteReadSizeM2[4] & (ALUResultM1 == ALUResultM2))) begin // If two Superscalar write at the same time.
-                case(MemWriteReadSizeM1[2:0])
-                    3'b000: do_pending_write( ALUResultM1,                WriteDataM1, 1);
-                    3'b001: do_pending_write({ALUResultM1[63:1], 1'b0},   WriteDataM1, 2);
-                    3'b010: do_pending_write({ALUResultM1[63:2], 2'b00},  WriteDataM1, 4);
-                    3'b011: do_pending_write({ALUResultM1[63:3], 3'b000}, WriteDataM1, 8);
-                endcase
                 if(Valid_Tag[set1][0][t] & (Valid_Tag[set1][0][t-1:0] == tag1)) begin
                     case(MemWriteReadSizeM1[2:0])
-                        3'b000: Data[set1][0][block1][8*ALUResultM1[2:0]+:8]   <= WriteDataM1; // sb
-                        3'b001: Data[set1][0][block1][16*ALUResultM1[2:1]+:16] <= WriteDataM1; // sh
-                        3'b010: Data[set1][0][block1][32*ALUResultM1[2]+:32]   <= WriteDataM1; // sw
-                        3'b011: Data[set1][0][block1]                          <= WriteDataM1; // sd
+                        3'b000: begin
+                            Data[set1][0][block1][8*ALUResultM1[2:0]+:8]   <= WriteDataM1; // sb
+                            do_pending_write( ALUResultM1,                WriteDataM1, 1);
+                        end
+                        3'b001: begin
+                            Data[set1][0][block1][16*ALUResultM1[2:1]+:16] <= WriteDataM1; // sh
+                            do_pending_write({ALUResultM1[63:1], 1'b0},   WriteDataM1, 2);
+                        end
+                        3'b010: begin
+                            Data[set1][0][block1][32*ALUResultM1[2]+:32]   <= WriteDataM1; // sw
+                            do_pending_write({ALUResultM1[63:2], 2'b00},  WriteDataM1, 4);
+                        end
+                        3'b011: begin
+                            Data[set1][0][block1]                          <= WriteDataM1; // sd
+                            do_pending_write({ALUResultM1[63:3], 3'b000}, WriteDataM1, 8);
+                        end
                     endcase
                     Dirty[set1][0] <= 1;
                     LRU[set1] = 1;
@@ -135,28 +210,27 @@ always_ff @ (posedge clk) begin
                 end
                 else if(Valid_Tag[set1][1][t] & (Valid_Tag[set1][1][t-1:0] == tag1)) begin
                     case(MemWriteReadSizeM1[2:0])
-                        3'b000: Data[set1][1][block1][8*ALUResultM1[2:0]+:8]   <= WriteDataM1; // sb
-                        3'b001: Data[set1][1][block1][16*ALUResultM1[2:1]+:16] <= WriteDataM1; // sh
-                        3'b010: Data[set1][1][block1][32*ALUResultM1[2]+:32]   <= WriteDataM1; // sw
-                        3'b011: Data[set1][1][block1]                          <= WriteDataM1; // sd
+                        3'b000: begin
+                            Data[set1][1][block1][8*ALUResultM1[2:0]+:8]   <= WriteDataM1; // sb
+                            do_pending_write( ALUResultM1,                WriteDataM1, 1);
+                        end
+                        3'b001: begin
+                            Data[set1][1][block1][16*ALUResultM1[2:1]+:16] <= WriteDataM1; // sh
+                            do_pending_write({ALUResultM1[63:1], 1'b0},   WriteDataM1, 2);
+                        end
+                        3'b010: begin
+                            Data[set1][1][block1][32*ALUResultM1[2]+:32]   <= WriteDataM1; // sw
+                            do_pending_write({ALUResultM1[63:2], 2'b00},  WriteDataM1, 4);
+                        end
+                        3'b011: begin
+                            Data[set1][1][block1]                          <= WriteDataM1; // sd
+                            do_pending_write({ALUResultM1[63:3], 3'b000}, WriteDataM1, 8);
+                        end
                     endcase
                     Dirty[set1][1] <= 1;
                     LRU[set1] = 0;
                     // use to print
                     P1 <= 1;
-                end else begin
-                    if(!(MEM_miss2 & (MEM_addr2==ALUResultM1))) begin
-                        if(!MEM_miss1) begin
-                            $display("write miss------addr: %0d(%0x): V0:%0d addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({ALUResultM1[63:3], 3'b000}),{ALUResultM1[63:3], 3'b000}, 
-                                Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][0][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][0][block1], 
-                                Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM1[s+b+y-1 : b+y]][1][t-1:0],ALUResultM1[s+b+y-1 : 0]}, Data[set1][1][block1]);
-                            MEM_Write1 <= 1;
-                            MEM_Size1 <= MemWriteReadSizeM1[2:0];
-                            MEM_Data1 <= WriteDataM1;
-                            MEM_addr1 <= ALUResultM1;
-                            MEM_miss1 <= 1;
-                        end
-                    end
                 end
                 // use to print
                 A1 <= ALUResultM1;
@@ -190,52 +264,87 @@ end
 
 // Superscalar 2
 // check miss2
-logic [t-1:0] tag2   = ALUResultM2[63      : s+b+y];
-logic [s-1:0] set2   = ALUResultM2[s+b+y-1 : b+y];
-logic [b-1:0] block2 = ALUResultM2[b+y-1   : y];
-always_ff @ (posedge clk) begin
+logic [t-1:0] tag2   = ALUResultM2[63     :s+b+y];
+logic [s-1:0] set2   = ALUResultM2[s+b+y-1:b+y];
+logic [b-1:0] block2 = ALUResultM2[b+y-1  :y];
+// Read & miss
+always_comb begin
     if(enableM) begin
-        // Read
-        if(MemWriteReadSizeM2[3]) begin
-            // Read 64 bit data
-            if(Valid_Tag[set2][0][t] & (Valid_Tag[set2][0][t-1:0] == tag2)) begin
-                $display("------addr: %0d(%0x): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d, addr1:%0x, Data1:%0x", $signed({ALUResultM2[63:3], 3'b000}),{ALUResultM2[63:3], 3'b000}, 
-                        Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][0][block2], 
-                        Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][1][block2]);
+        // Read 64 bit data
+        if(Valid_Tag[set2][0][t] & (Valid_Tag[set2][0][t-1:0] == tag2)) begin
+            if(MemWriteReadSizeM2[3]) begin
                 ReadDataM2 = Data[set2][0][block2]; // 3'b011 // ld
                 LRU[set2] = 1;
             end
-            else if(Valid_Tag[set2][1][t] & (Valid_Tag[set2][1][t-1:0] == tag2)) begin
-                $display("------addr: %0d(%0x): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d, addr1:%0x, Data1:%0x", $signed({ALUResultM2[63:3], 3'b000}),{ALUResultM2[63:3], 3'b000}, 
-                        Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][0][block2], 
-                        Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][1][block2]);
+        end
+        else if(Valid_Tag[set2][1][t] & (Valid_Tag[set2][1][t-1:0] == tag2)) begin
+            if(MemWriteReadSizeM2[3]) begin
                 ReadDataM2 = Data[set2][1][block2]; // 3'b011 // ld
                 LRU[set2] = 0;
             end
-            else begin
+        end
+        else begin
+            if(MemWriteReadSizeM2[3]) begin
                 if(MemWriteReadSizeM1[4] & (ALUResultM1[63:y] == ALUResultM2[63:y])) begin
                     // when Superscalar 1 write, Superscalar 2 read.
                     ReadDataM2 = 0;
                 end else begin
-                    if(!(MEM_miss1 & (MEM_addr1==ALUResultM2))) begin
-                        $display("read miss------addr: %0d(%0x): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d, addr1:%0x, Data1:%0x", $signed({ALUResultM2[63:3], 3'b000}),{ALUResultM2[63:3], 3'b000}, 
-                            Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][0][block2], 
-                            Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][1][block2]);
-                        MEM_addr2 <= ALUResultM2;
-                        MEM_miss2 <= 1;
-                    end
+                        //$display("read miss------addr: %0d(%0x): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d, addr1:%0x, Data1:%0x", $signed({ALUResultM2[63:3], 3'b000}),{ALUResultM2[63:3], 3'b000}, 
+                        //    Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][0][block2], 
+                        //    Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][1][block2]);
+                        //MEM_addr2 = ALUResultM2;
+                        //MEM_miss2 = 1;
+                        //Stall_miss2 = 1;
+
+                        //if(MEM_miss1 & (MEM_addr1==ALUResultM2)) Stall_miss1 = 1;
+                        //else begin
+                            $display("read miss------addr: %0d(%0x): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d, addr1:%0x, Data1:%0x", $signed({ALUResultM2[63:3], 3'b000}),{ALUResultM2[63:3], 3'b000}, 
+                                Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][0][block2], 
+                                Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][1][block2]);
+                            MEM_addr2 = ALUResultM2;
+                            MEM_miss2 = 1;
+                            Stall_miss2 = 1;
+                        //end
                 end
+            end else if(MemWriteReadSizeM2[4]) begin
+                $display("write miss------addr: %0d(%0x): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d, addr1:%0x, Data1:%0x", $signed({ALUResultM2[63:3], 3'b000}),{ALUResultM2[63:3], 3'b000}, 
+                        Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][0][block2], 
+                        Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][1][block2]);
+                //MEM_Write2 = 1;
+                //MEM_Size2 = MemWriteReadSizeM2[2:0];
+                //MEM_Data2 = WriteDataM2;
+                //MEM_addr2 = ALUResultM2;
+                //MEM_miss2 = 1;
+                //Stall_miss2 = 1;
+
+                //if(MEM_miss1 & (MEM_addr1==ALUResultM2)) Stall_miss1 = 1;
+                //else begin
+                    if(MEM_miss2) Stall_miss2 = 1;
+                    else begin
+                        //$display("write miss------addr: %0d(%0x): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d, addr1:%0x, Data1:%0x", $signed({ALUResultM2[63:3], 3'b000}),{ALUResultM2[63:3], 3'b000}, 
+                        //    Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][0][block2], 
+                        //    Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][1][block2]);
+                        MEM_Write2 = 1;
+                        MEM_Size2 = MemWriteReadSizeM2[2:0];
+                        MEM_Data2 = WriteDataM2;
+                        MEM_addr2 = ALUResultM2;
+                        Hazard_addr2 = ALUResultM2;
+                        MEM_miss2 = 1;
+                    end
+                //end
             end
-            // when Superscalar 1 write, Superscalar 2 read.
-            if(MemWriteReadSizeM1[4] & (ALUResultM1[63:y] == ALUResultM2[63:y])) begin
-                case(MemWriteReadSizeM1[2:0])
-                    3'b000: ReadDataM2[8*ALUResultM1[2:0]+:8] = WriteDataM1;
-                    3'b001: ReadDataM2[16*ALUResultM1[2:1]+:16] = WriteDataM1;
-                    3'b010: ReadDataM2[32*ALUResultM1[2]+:32] = WriteDataM1;
-                    3'b011: ReadDataM2 = WriteDataM1;
-                endcase
-            end
-            // Size
+        end
+        // when Superscalar 1 write, Superscalar 2 read.
+        if(MemWriteReadSizeM1[4] & (ALUResultM1[63:y] == ALUResultM2[63:y])) begin
+            case(MemWriteReadSizeM1[2:0])
+                3'b000: ReadDataM2[8*ALUResultM1[2:0]+:8] = WriteDataM1;
+                3'b001: ReadDataM2[16*ALUResultM1[2:1]+:16] = WriteDataM1;
+                3'b010: ReadDataM2[32*ALUResultM1[2]+:32] = WriteDataM1;
+                3'b011: ReadDataM2 = WriteDataM1;
+            endcase
+        end
+        // Size
+        if(MemWriteReadSizeM2[3]) begin
             case(MemWriteReadSizeM2[2:0])
                 3'b000: begin
                     ReadDataM2 = {{56{ReadDataM2[8*ALUResultM2[2:0]+7]}}, ReadDataM2[8*ALUResultM2[2:0]+:8]};   // lb
@@ -265,21 +374,55 @@ always_ff @ (posedge clk) begin
                     $display("ld %0x: x%0d = addr: %0d(%0x) = %0d(%0x)", PCPlus4M2-4, RdM2, $signed({ALUResultM2[63:3], 3'b000}),{ALUResultM2[63:3], 3'b000}, ReadDataM2,ReadDataM2);
                 end
             endcase
-        end 
-        // Write
-        else if(MemWriteReadSizeM2[4]) begin
-            case(MemWriteReadSizeM2[2:0])
-                3'b000: do_pending_write( ALUResultM2,                WriteDataM2, 1);
-                3'b001: do_pending_write({ALUResultM2[63:1], 1'b0},   WriteDataM2, 2);
-                3'b010: do_pending_write({ALUResultM2[63:2], 2'b00},  WriteDataM2, 4);
-                3'b011: do_pending_write({ALUResultM2[63:3], 3'b000}, WriteDataM2, 8);
-            endcase
+            $display("------addr: %0d(%0x): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d, addr1:%0x, Data1:%0x", $signed({ALUResultM2[63:3], 3'b000}),{ALUResultM2[63:3], 3'b000}, 
+                    Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][0][block2], 
+                    Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][1][block2]);
+            if(!MEM_miss2) Stall_miss2 = 0;
+        end else if(!MEM_miss2 & MemWriteReadSizeM2[4]) Stall_miss2 = 0;
+    end
+end
+
+// Write
+/*
+always_comb begin
+    if(enableM) begin
+        if(MemWriteReadSizeM2[4]) begin
+            if(!(Valid_Tag[set2][0][t] & (Valid_Tag[set2][0][t-1:0] == tag2)) & !(Valid_Tag[set2][1][t] & (Valid_Tag[set2][1][t-1:0] == tag2))) begin
+                $display("write miss------addr: %0d(%0x): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d, addr1:%0x, Data1:%0x", $signed({ALUResultM2[63:3], 3'b000}),{ALUResultM2[63:3], 3'b000}, 
+                        Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][0][block2], 
+                        Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][1][block2]);
+                MEM_addr2 = ALUResultM2;
+                MEM_miss2 = 1;
+                Stall_miss2 = 1;
+            end
+            if(!MEM_miss2) begin
+                Stall_miss2 = 0;
+            end
+        end
+    end
+end
+*/
+always_ff @ (posedge clk) begin
+    if(enableM) begin
+        if(MemWriteReadSizeM2[4]) begin
             if(Valid_Tag[set2][0][t] & (Valid_Tag[set2][0][t-1:0] == tag2)) begin
                 case(MemWriteReadSizeM2[2:0])
-                    3'b000: Data[set2][0][block2][8*ALUResultM2[2:0]+:8]   <= WriteDataM2; // sb
-                    3'b001: Data[set2][0][block2][16*ALUResultM2[2:1]+:16] <= WriteDataM2; // sh
-                    3'b010: Data[set2][0][block2][32*ALUResultM2[2]+:32]   <= WriteDataM2; // sw
-                    3'b011: Data[set2][0][block2]                          <= WriteDataM2; // sd
+                    3'b000: begin
+                        Data[set2][0][block2][8*ALUResultM2[2:0]+:8]   <= WriteDataM2; // sb
+                        do_pending_write( ALUResultM2,                WriteDataM2, 1);
+                    end
+                    3'b001: begin
+                        Data[set2][0][block2][16*ALUResultM2[2:1]+:16] <= WriteDataM2; // sh
+                        do_pending_write({ALUResultM2[63:1], 1'b0},   WriteDataM2, 2);
+                    end
+                    3'b010: begin
+                        Data[set2][0][block2][32*ALUResultM2[2]+:32]   <= WriteDataM2; // sw
+                        do_pending_write({ALUResultM2[63:2], 2'b00},  WriteDataM2, 4);
+                    end
+                    3'b011: begin
+                        Data[set2][0][block2]                          <= WriteDataM2; // sd
+                        do_pending_write({ALUResultM2[63:3], 3'b000}, WriteDataM2, 8);
+                    end
                 endcase
                 Dirty[set2][0] <= 1;
                 LRU[set2] = 1;
@@ -288,28 +431,27 @@ always_ff @ (posedge clk) begin
             end
             else if(Valid_Tag[set2][1][t] & (Valid_Tag[set2][1][t-1:0] == tag2)) begin
                 case(MemWriteReadSizeM2[2:0])
-                    3'b000: Data[set2][1][block2][8*ALUResultM2[2:0]+:8]   <= WriteDataM2; // sb
-                    3'b001: Data[set2][1][block2][16*ALUResultM2[2:1]+:16] <= WriteDataM2; // sh
-                    3'b010: Data[set2][1][block2][32*ALUResultM2[2]+:32]   <= WriteDataM2; // sw
-                    3'b011: Data[set2][1][block2]                          <= WriteDataM2; // sd
+                    3'b000: begin
+                        Data[set2][1][block2][8*ALUResultM2[2:0]+:8]   <= WriteDataM2; // sb
+                        do_pending_write( ALUResultM2,                WriteDataM2, 1);
+                    end
+                    3'b001: begin
+                        Data[set2][1][block2][16*ALUResultM2[2:1]+:16] <= WriteDataM2; // sh
+                        do_pending_write({ALUResultM2[63:1], 1'b0},   WriteDataM2, 2);
+                    end
+                    3'b010: begin
+                        Data[set2][1][block2][32*ALUResultM2[2]+:32]   <= WriteDataM2; // sw
+                        do_pending_write({ALUResultM2[63:2], 2'b00},  WriteDataM2, 4);
+                    end
+                    3'b011: begin
+                        Data[set2][1][block2]                          <= WriteDataM2; // sd
+                        do_pending_write({ALUResultM2[63:3], 3'b000}, WriteDataM2, 8);
+                    end
                 endcase
                 Dirty[set2][1] <= 1;
                 LRU[set2] = 0;
                 // use to print
                 P2 <= 1;
-            end else begin
-                if(!(MEM_miss1 & (MEM_addr1==ALUResultM2))) begin
-                    if(!MEM_miss2) begin
-                        $display("write miss------addr: %0d(%0x): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d, addr1:%0x, Data1:%0x", $signed({ALUResultM2[63:3], 3'b000}),{ALUResultM2[63:3], 3'b000}, 
-                                Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][0][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][0][block2], 
-                                Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t], {Valid_Tag[ALUResultM2[s+b+y-1 : b+y]][1][t-1:0], ALUResultM2[s+b+y-1 : 0]}, Data[set2][1][block2]);
-                        MEM_Write2 <= 1;
-                        MEM_Size2 <= MemWriteReadSizeM2[2:0];
-                        MEM_Data2 <= WriteDataM2;
-                        MEM_addr2 <= ALUResultM2;
-                        MEM_miss2 <= 1;
-                    end
-                end
             end
             // use to print
                 A2 <= ALUResultM2;
