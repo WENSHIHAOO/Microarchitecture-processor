@@ -40,8 +40,9 @@ module rd_wb
     output BranchD2,
     output        EcallD2,
     //****** WB ******
-    output m_axi_acready,
     output enableW,
+    output m_axi_acready,
+    input  [63:0] num_clk,
     // Superscalar 1
     input  [4:0]  RdW1,
     input         RegWriteW1,
@@ -51,13 +52,7 @@ module rd_wb
     input  [4:0]  RdW2,
     input         RegWriteW2,
     input  [63:0] ResultW2,
-    input         EcallW2,
-    // use to print
-    input  [63:0] PCD1,
-    input  [63:0] PCD2,
-    input  [63:0] num_clk,
-    input  [63:0] num_instr,
-    input  [63:0] num_axi
+    input         EcallW2
 );
 //****** RD ******
 //--- control_unit ---
@@ -535,12 +530,10 @@ always_comb begin
             a5 = registers[15];
             a6 = registers[16];
             a7 = registers[17];
-            $display("ecall: %0x, %0x, %0x, %0x, %0x, %0x, %0x, %0x, %0x", a7, a0, a1, a2, a3, a4, a5, a6, a0);
             do_ecall(a7, a0, a1, a2, a3, a4, a5, a6, a0);
             registers[10] = a0;
             m_axi_acready = 1;
-            // use to print
-            $display("num_clk:%0d  .  num_instr:%0d  .  num_axi:%0d", num_clk, num_instr, num_axi);
+            //if(a7 == 231) $display("num_clk:%0d", num_clk);
         end
     end
 
