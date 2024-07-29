@@ -63,11 +63,11 @@ module top
   input   wire [ADDR_WIDTH-1:0]  m_axi_acaddr,
   input   wire [3:0]             m_axi_acsnoop
 );
-localparam C = 16 * 1024;                // Cache size (bytes), not including overhead such as the valid, tag, LRU, and dirty bits
+localparam C = 256;                // Cache size (bytes), not including overhead such as the valid, tag, LRU, and dirty bits
 localparam N = 2;                        // Number of ways per set
 localparam B = 8;                        // Block size (bytes)
-localparam S = 1024; //C/(N*B)           // Number of sets
-localparam s = 10;   //log2(S)           // Number of set index bits
+localparam S = 16; //C/(N*B)           // Number of sets
+localparam s = 4;   //log2(S)           // Number of set index bits
 localparam b = 3;    //log2(B)           // Number of block offset bits
 localparam y = 3;                        // Number of byte offset bits
 localparam t = ADDR_WIDTH - (s + b + y); // Number of tag bits
@@ -78,76 +78,66 @@ wire  MEM_miss2;
 wire  [63:0]  IF_addr;
 wire  [63:0]  MEM_addr1;
 wire  [63:0]  MEM_addr2;
-wire  [1:0]   read_dirty;
+wire          MEM_Write1;
+wire  [2:0]   MEM_Size1;
+wire  [63:0]  MEM_Data1;
+wire          MEM_Write2;
+wire  [2:0]   MEM_Size2;
+wire  [63:0]  MEM_Data2;
 logic [1:0]   fetch_i_d;
-logic [2:0]   step;
+logic [1:0]   step;
 logic [t-1:0] tag;
 logic [s-1:0] set;
 logic [2:0]   block_offset;
 logic [63:0]  write_addr;
 logic [63:0]  write_Data [B];
 always_ff @ (posedge clk) begin
-  if(step == 0) begin
+  if(step==0 & !reset & m_axi_arready) begin
     if(MEM_miss1) begin
-      step <= 1;
       fetch_i_d <= 1;
       tag <= MEM_addr1[63 : s+b+y];
       set <= MEM_addr1[s+b+y-1 : b+y];
-      $display("Read MEM1, araddr:%0x", MEM_addr1);
-    end else if(MEM_miss2) begin
+      m_axi_araddr <= (MEM_addr1[63:b+y] << (b+y));
+      m_axi_arvalid <= 1;
+      m_axi_rready <= 1;
       step <= 1;
+    end else if(MEM_miss2) begin
       fetch_i_d <= 2;
       tag <= MEM_addr2[63 : s+b+y];
       set <= MEM_addr2[s+b+y-1 : b+y];
-      $display("Read MEM2, araddr:%0x", MEM_addr2);
-    end else if(IF_miss) begin
+      m_axi_araddr <= (MEM_addr2[63:b+y] << (b+y));
+      m_axi_arvalid <= 1;
+      m_axi_rready <= 1;
       step <= 1;
+    end else if(IF_miss) begin
       fetch_i_d <= 3;
       tag <= IF_addr[63 : s+b+y];
       set <= IF_addr[s+b+y-1 : b+y];
-      $display("Read IF, araddr:%0x", IF_addr);
-    end
-  end
-  // Address Read
-  else if(step == 1) begin
-    if(m_axi_arready) begin
-      if(m_axi_arvalid) begin
-        m_axi_rready <= 1;
-        m_axi_arvalid <= 0;
-        block_offset <= 0;
-        step <= 2;
-      end else begin
-        case (fetch_i_d)
-          1, 2: begin
-            if(fetch_i_d == 1) m_axi_araddr <= (MEM_addr1[63:b+y] << (b+y));
-            else m_axi_araddr <= (MEM_addr2[63:b+y] << (b+y));
-            if(MEM.Dirty[set][MEM.LRU[set]]) begin
-              write_addr <= {{MEM.Valid_Tag[set][MEM.LRU[set]][t-1:0],set} << (b+y)};
-              write_Data[0] <= MEM.Data[set][MEM.LRU[set]][0];
-              write_Data[1] <= MEM.Data[set][MEM.LRU[set]][1];
-              write_Data[2] <= MEM.Data[set][MEM.LRU[set]][2];
-              write_Data[3] <= MEM.Data[set][MEM.LRU[set]][3];
-              write_Data[4] <= MEM.Data[set][MEM.LRU[set]][4];
-              write_Data[5] <= MEM.Data[set][MEM.LRU[set]][5];
-              write_Data[6] <= MEM.Data[set][MEM.LRU[set]][6];
-              write_Data[7] <= MEM.Data[set][MEM.LRU[set]][7];
-            end
-          end
-          3: begin
-            m_axi_araddr <= (IF_addr[63:b+y] << (b+y));
-          end
-        endcase
-        m_axi_arvalid <= 1;
-      end
+      m_axi_araddr <= (IF_addr[63:b+y] << (b+y));
+      m_axi_arvalid <= 1;
+      m_axi_rready <= 1;
+      step <= 1;
     end
   end
   // Data Read
-  else if(step == 2) begin
+  else if(step == 1) begin
+    m_axi_arvalid <= 0;
     if(m_axi_rvalid) begin
       case (fetch_i_d)
         1, 2: begin
+          if((block_offset==0) & MEM.Dirty[set][MEM.LRU[set]]) begin
+            write_addr <= {{MEM.Valid_Tag[set][MEM.LRU[set]][t-1:0],set} << (b+y)};
+            write_Data[0] <= MEM.Data[set][MEM.LRU[set]][0];
+            write_Data[1] <= MEM.Data[set][MEM.LRU[set]][1];
+            write_Data[2] <= MEM.Data[set][MEM.LRU[set]][2];
+            write_Data[3] <= MEM.Data[set][MEM.LRU[set]][3];
+            write_Data[4] <= MEM.Data[set][MEM.LRU[set]][4];
+            write_Data[5] <= MEM.Data[set][MEM.LRU[set]][5];
+            write_Data[6] <= MEM.Data[set][MEM.LRU[set]][6];
+            write_Data[7] <= MEM.Data[set][MEM.LRU[set]][7];
+          end
           MEM.Data[set][MEM.LRU[set]][block_offset] <= m_axi_rdata;
-          $display("Read MEM: araddr:%0x, data:%0x", m_axi_araddr, m_axi_rdata);
+          $display("Read MEM%d: araddr:%0x, data:%0x", fetch_i_d, m_axi_araddr, m_axi_rdata);
         end
         3: begin
           IF.Data[set][IF.LRU[set]][block_offset] <= m_axi_rdata;
@@ -158,12 +148,12 @@ always_ff @ (posedge clk) begin
       if (m_axi_rlast) begin
         m_axi_rready <= 0;
         m_axi_acready <= 1;
-        step <= 3;
+        step <= 2;
       end
     end
   end
   // Check Snoop
-  else if(step == 3) begin
+  else if(step == 2) begin
     if(m_axi_acvalid && (m_axi_acsnoop == 4'hd)) begin
       $display("0: ac 0x%x == ar 0x%x", m_axi_acaddr, m_axi_araddr);
       if(IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t] & (IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t-1:0] == m_axi_acaddr[63 : s+b+y])) begin
@@ -187,13 +177,33 @@ always_ff @ (posedge clk) begin
       case (fetch_i_d)
         1, 2: begin
           if(MEM.Dirty[set][MEM.LRU[set]]) begin
-            MEM.Dirty[set][MEM.LRU[set]] <= 0;
-            read_dirty <= fetch_i_d;
-            step <= 4;
+            // AXI Write Data
+            write_step <= 1;
+          end
+          if(fetch_i_d == 1) begin
+            MEM_miss1 <= 0;
+            if(MEM_Write1) begin
+              MEM_Write1 <= 0;
+              case(MEM_Size1)
+                3'b000: MEM.Data[set][MEM.LRU[set]][MEM_addr1[b+y-1 : y]][8*MEM_addr1[2:0]+:8]   <= MEM_Data1; // sb
+                3'b001: MEM.Data[set][MEM.LRU[set]][MEM_addr1[b+y-1 : y]][16*MEM_addr1[2:1]+:16] <= MEM_Data1; // sh
+                3'b010: MEM.Data[set][MEM.LRU[set]][MEM_addr1[b+y-1 : y]][32*MEM_addr1[2]+:32]   <= MEM_Data1; // sw
+                3'b011: MEM.Data[set][MEM.LRU[set]][MEM_addr1[b+y-1 : y]]                        <= MEM_Data1; // sd
+              endcase
+              MEM.Dirty[set][MEM.LRU[set]] <= 1;
+            end else MEM.Dirty[set][MEM.LRU[set]] <= 0;
           end else begin
-            if(fetch_i_d == 1) MEM_miss1 = 0;
-            else MEM_miss2 = 0;
-            step <= 0;
+            MEM_miss2 <= 0;
+            if(MEM_Write2) begin
+              MEM_Write2 <= 0;
+              case(MEM_Size2)
+                3'b000: MEM.Data[set][MEM.LRU[set]][MEM_addr2[b+y-1 : y]][8*MEM_addr2[2:0]+:8]   <= MEM_Data2; // sb
+                3'b001: MEM.Data[set][MEM.LRU[set]][MEM_addr2[b+y-1 : y]][16*MEM_addr2[2:1]+:16] <= MEM_Data2; // sh
+                3'b010: MEM.Data[set][MEM.LRU[set]][MEM_addr2[b+y-1 : y]][32*MEM_addr2[2]+:32]   <= MEM_Data2; // sw
+                3'b011: MEM.Data[set][MEM.LRU[set]][MEM_addr2[b+y-1 : y]]                        <= MEM_Data2; // sd
+              endcase
+              MEM.Dirty[set][MEM.LRU[set]] <= 1;
+            end else MEM.Dirty[set][MEM.LRU[set]] <= 0;
           end
           MEM.Valid_Tag[set][MEM.LRU[set]][t] <= 1;
           MEM.Valid_Tag[set][MEM.LRU[set]][t-1:0] <= tag;
@@ -204,10 +214,11 @@ always_ff @ (posedge clk) begin
           IF.Valid_Tag[set][IF.LRU[set]][t-1:0] <= tag;
           IF.LRU[set] = !IF.LRU[set];
           IF_miss = 0;
-          step <= 0;
         end
       endcase
+      block_offset <= 0;
       m_axi_acready <= 0;
+      step <= 0;
     end
   end
 end
@@ -216,18 +227,12 @@ end
 wire  [1:0]  write_step;
 logic [2:0]  write_block_offset;
 always_ff @ (posedge clk) begin
-  if(write_step == 0) begin
-    if(read_dirty > 0) begin
-      m_axi_wlast <= 0;
-      write_step <= 1;
-    end
-  end
   // Address Write
-  else if(write_step == 1) begin
+  if(write_step == 1) begin
     if(m_axi_awready) begin
+      m_axi_wlast <= 0;
       m_axi_awaddr <= write_addr;
       m_axi_awvalid <= 1;
-      write_block_offset <= 0;
       write_step <= 2;
     end
   end
@@ -240,10 +245,6 @@ always_ff @ (posedge clk) begin
       m_axi_wvalid <= 1;
       write_block_offset <= write_block_offset + 1;
       if(write_block_offset == 7) begin
-        if(read_dirty == 1) MEM_miss1 = 0;
-        else MEM_miss2 = 0;
-        step <= 0;
-        read_dirty <= 0;
         m_axi_wlast <= 1;
         write_step <= 3;
       end
@@ -251,10 +252,57 @@ always_ff @ (posedge clk) begin
   end
   // Done Write
   else if(write_step == 3) begin
+    write_block_offset <= 0;
     m_axi_wvalid <= 0;
     write_step <= 0;
   end
 end
+always_comb begin
+  if(enableM) begin
+    if(!MEM_miss1) Stall_miss1 = 0;
+    if(!MEM_miss2) Stall_miss2 = 0;
+    if(MemWriteReadSizeM1[3]) begin
+      if(!(MEM.Valid_Tag[MEM.set1][0][t] & (MEM.Valid_Tag[MEM.set1][0][t-1:0] == MEM.tag1)) & !(MEM.Valid_Tag[MEM.set1][1][t] & (MEM.Valid_Tag[MEM.set1][1][t-1:0] == MEM.tag1)))begin
+        if(!((MemWriteReadSizeM2[3]|MemWriteReadSizeM2[4]) & (ALUResultM1[63:b+y]==ALUResultM2[63:b+y]))) begin
+            if(MEM_miss2 & (MEM_addr2==ALUResultM1)) Stall_miss2 = 1;
+            else begin
+                Stall_miss1 = 1;
+            end
+        end
+      end
+    end
+    else if(MemWriteReadSizeM1[4]) begin
+      if(!(MemWriteReadSizeM2[4] & (ALUResultM1 == ALUResultM2))) begin 
+        if(!(MEM.Valid_Tag[MEM.set1][0][t] & (MEM.Valid_Tag[MEM.set1][0][t-1:0] == MEM.tag1)) & !(MEM.Valid_Tag[MEM.set1][1][t] & (MEM.Valid_Tag[MEM.set1][1][t-1:0] == MEM.tag1)))begin
+          if(MEM_miss2 & (MEM_addr2==ALUResultM1)) Stall_miss2 = 1;
+          else begin
+              if(MEM_miss1) Stall_miss1 = 1;
+          end
+        end
+      end
+    end
+
+    if(MemWriteReadSizeM2[3]) begin
+      if(!(MEM.Valid_Tag[MEM.set2][0][t] & (MEM.Valid_Tag[MEM.set2][0][t-1:0] == MEM.tag2)) & !(MEM.Valid_Tag[MEM.set2][1][t] & (MEM.Valid_Tag[MEM.set2][1][t-1:0] == MEM.tag2))) begin
+        if(!(MemWriteReadSizeM1[4] & (ALUResultM1[63:y] == ALUResultM2[63:y]))) begin
+          if(MEM_miss1 & (MEM_addr1==ALUResultM2)) Stall_miss1 = 1;
+          else begin
+              Stall_miss2 = 1;
+          end
+        end
+      end
+    end
+    else if(MemWriteReadSizeM2[4]) begin
+      if(!(MEM.Valid_Tag[MEM.set2][0][t] & (MEM.Valid_Tag[MEM.set2][0][t-1:0] == MEM.tag2)) & !(MEM.Valid_Tag[MEM.set2][1][t] & (MEM.Valid_Tag[MEM.set2][1][t-1:0] == MEM.tag2))) begin
+        if(MEM_miss1 & (MEM_addr1==ALUResultM2)) Stall_miss1 = 1;
+        else begin
+            if(MEM_miss2) Stall_miss2 = 1;
+        end
+      end
+    end
+  end
+end
+
 
 //****** begin ******
 wire [63:0] pc;
@@ -794,12 +842,19 @@ mem #(.N(N),
   .Stall_miss2(Stall_miss2),
   .MEM_miss1(MEM_miss1),
   .MEM_miss2(MEM_miss2),
+  .MEM_addr1(MEM_addr1),
+  .MEM_addr2(MEM_addr2),
+  .MEM_Write1(MEM_Write1),
+  .MEM_Size1(MEM_Size1),
+  .MEM_Data1(MEM_Data1),
+  .MEM_Write2(MEM_Write2),
+  .MEM_Size2(MEM_Size2),
+  .MEM_Data2(MEM_Data2),
   // Superscalar 1
   .MemWriteReadSizeM1(MemWriteReadSizeM1),
   .ALUResultM1(ALUResultM1),
   .WriteDataM1(WriteDataM1),
   .ReadDataM1(ReadDataM1),
-  .MEM_addr1(MEM_addr1),
   // use to print
   .RdM1(RdM1),
   .PCPlus4M1(PCPlus4M1),
@@ -808,7 +863,6 @@ mem #(.N(N),
   .ALUResultM2(ALUResultM2),
   .WriteDataM2(WriteDataM2),
   .ReadDataM2(ReadDataM2),
-  .MEM_addr2(MEM_addr2),
   // use to print
   .RdM2(RdM2),
   .PCPlus4M2(PCPlus4M2)
