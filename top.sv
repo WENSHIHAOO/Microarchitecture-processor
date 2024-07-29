@@ -94,34 +94,202 @@ logic [b+y-1:0] block_y;
 logic [2:0]   block_offset;
 logic [63:0]  write_addr;
 logic [63:0]  write_Data [B];
+logic [4:0]   index;
+// use to print
+wire  [63:0]  num_axi;
 always_ff @ (posedge clk) begin
+  // Address Read
   if(step==0 & !reset & m_axi_arready) begin
     if(MEM_miss1) begin
-      fetch_i_d <= 1;
-      tag <= MEM_addr1[63     :s+b+y];
-      set <= MEM_addr1[s+b+y-1:b+y];
-      block_y <= MEM_addr1[b+y-1:0];
-      m_axi_araddr <= (MEM_addr1[63:b+y] << (b+y));
-      m_axi_arvalid <= 1;
-      m_axi_rready <= 1;
-      step <= 1;
+      fetch_i_d = 1;
+      tag = MEM_addr1[63     :s+b+y];
+      set = MEM_addr1[s+b+y-1:b+y];
+      block_y = MEM_addr1[b+y-1:0];
+      m_axi_araddr = (MEM_addr1[63:b+y] << (b+y));
     end else if(MEM_miss2) begin
-      fetch_i_d <= 2;
-      tag <= MEM_addr2[63     :s+b+y];
-      set <= MEM_addr2[s+b+y-1:b+y];
-      block_y <= MEM_addr2[b+y-1:0];
-      m_axi_araddr <= (MEM_addr2[63:b+y] << (b+y));
-      m_axi_arvalid <= 1;
-      m_axi_rready <= 1;
-      step <= 1;
+      fetch_i_d = 2;
+      tag = MEM_addr2[63     :s+b+y];
+      set = MEM_addr2[s+b+y-1:b+y];
+      block_y = MEM_addr2[b+y-1:0];
+      m_axi_araddr = (MEM_addr2[63:b+y] << (b+y));
     end else if(IF_miss) begin
-      fetch_i_d <= 3;
-      tag <= IF_addr[63     :s+b+y];
-      set <= IF_addr[s+b+y-1:b+y];
-      m_axi_araddr <= (IF_addr[63:b+y] << (b+y));
-      m_axi_arvalid <= 1;
-      m_axi_rready <= 1;
-      step <= 1;
+      fetch_i_d = 3;
+      tag = IF_addr[63     :s+b+y];
+      set = IF_addr[s+b+y-1:b+y];
+      m_axi_araddr = (IF_addr[63:b+y] << (b+y));
+    end
+    // Victim Cache
+    if(fetch_i_d > 0) begin
+      if(fetch_i_d == 3) begin
+        // Check IF Victim Cache
+        for(int i=0; i<16; i++) begin
+          if(IF.Victim_Valid_Addr[i][64] & (IF.Victim_Valid_Addr[i][63:0]==IF_addr)) begin
+            if(IF.Valid_Tag[set][IF.LRU[set]][t]) begin
+              write_Data[0] = IF.Victim[i][0];
+              write_Data[1] = IF.Victim[i][1];
+              write_Data[2] = IF.Victim[i][2];
+              write_Data[3] = IF.Victim[i][3];
+              write_Data[4] = IF.Victim[i][4];
+              write_Data[5] = IF.Victim[i][5];
+              write_Data[6] = IF.Victim[i][6];
+              write_Data[7] = IF.Victim[i][7];
+
+              IF.Victim[i][0] = IF.Data[set][IF.LRU[set]][0];
+              IF.Victim[i][1] = IF.Data[set][IF.LRU[set]][1];
+              IF.Victim[i][2] = IF.Data[set][IF.LRU[set]][2];
+              IF.Victim[i][3] = IF.Data[set][IF.LRU[set]][3];
+              IF.Victim[i][4] = IF.Data[set][IF.LRU[set]][4];
+              IF.Victim[i][5] = IF.Data[set][IF.LRU[set]][5];
+              IF.Victim[i][6] = IF.Data[set][IF.LRU[set]][6];
+              IF.Victim[i][7] = IF.Data[set][IF.LRU[set]][7];
+              IF.Victim_Valid_Addr[i][64] = 1;
+              IF.Victim_Valid_Addr[i][63:0] = {{IF.Valid_Tag[set][IF.LRU[set]][t-1:0],set} << (b+y)};
+
+              IF.Data[set][IF.LRU[set]][0] = write_Data[0];
+              IF.Data[set][IF.LRU[set]][1] = write_Data[1];
+              IF.Data[set][IF.LRU[set]][2] = write_Data[2];
+              IF.Data[set][IF.LRU[set]][3] = write_Data[3];
+              IF.Data[set][IF.LRU[set]][4] = write_Data[4];
+              IF.Data[set][IF.LRU[set]][5] = write_Data[5];
+              IF.Data[set][IF.LRU[set]][6] = write_Data[6];
+              IF.Data[set][IF.LRU[set]][7] = write_Data[7];
+            end else begin
+              IF.Victim_Valid_Addr[i][64] = 0;
+              IF.Data[set][IF.LRU[set]][0] = IF.Victim[i][0];
+              IF.Data[set][IF.LRU[set]][1] = IF.Victim[i][1];
+              IF.Data[set][IF.LRU[set]][2] = IF.Victim[i][2];
+              IF.Data[set][IF.LRU[set]][3] = IF.Victim[i][3];
+              IF.Data[set][IF.LRU[set]][4] = IF.Victim[i][4];
+              IF.Data[set][IF.LRU[set]][5] = IF.Victim[i][5];
+              IF.Data[set][IF.LRU[set]][6] = IF.Victim[i][6];
+              IF.Data[set][IF.LRU[set]][7] = IF.Victim[i][7];
+            end
+            i = 16;
+            // Step Done Read
+            step = 2;
+          end
+        end
+      end else begin
+        // Check MEM Victim Cache
+        for(int i=0; i<16; i++) begin
+          if(MEM.Victim_Valid_Addr[i][64] & (MEM.Victim_Valid_Addr[i][63:0]=={{tag,set}<<(b+y)})) begin
+            if(MEM.Valid_Tag[set][MEM.LRU[set]][t]) begin
+              write_Data[0] = MEM.Data[set][MEM.LRU[set]][0];
+              write_Data[1] = MEM.Data[set][MEM.LRU[set]][1];
+              write_Data[2] = MEM.Data[set][MEM.LRU[set]][2];
+              write_Data[3] = MEM.Data[set][MEM.LRU[set]][3];
+              write_Data[4] = MEM.Data[set][MEM.LRU[set]][4];
+              write_Data[5] = MEM.Data[set][MEM.LRU[set]][5];
+              write_Data[6] = MEM.Data[set][MEM.LRU[set]][6];
+              write_Data[7] = MEM.Data[set][MEM.LRU[set]][7];
+
+              MEM.Data[set][MEM.LRU[set]][0] = MEM.Victim[i][0];
+              MEM.Data[set][MEM.LRU[set]][1] = MEM.Victim[i][1];
+              MEM.Data[set][MEM.LRU[set]][2] = MEM.Victim[i][2];
+              MEM.Data[set][MEM.LRU[set]][3] = MEM.Victim[i][3];
+              MEM.Data[set][MEM.LRU[set]][4] = MEM.Victim[i][4];
+              MEM.Data[set][MEM.LRU[set]][5] = MEM.Victim[i][5];
+              MEM.Data[set][MEM.LRU[set]][6] = MEM.Victim[i][6];
+              MEM.Data[set][MEM.LRU[set]][7] = MEM.Victim[i][7];
+
+              MEM.Victim[i][0] = write_Data[0];
+              MEM.Victim[i][1] = write_Data[1];
+              MEM.Victim[i][2] = write_Data[2];
+              MEM.Victim[i][3] = write_Data[3];
+              MEM.Victim[i][4] = write_Data[4];
+              MEM.Victim[i][5] = write_Data[5];
+              MEM.Victim[i][6] = write_Data[6];
+              MEM.Victim[i][7] = write_Data[7];
+              MEM.Victim_Valid_Addr[i][64] = 1;
+              MEM.Victim_Valid_Addr[i][63:0] = {{MEM.Valid_Tag[set][MEM.LRU[set]][t-1:0],set} << (b+y)};
+            end else begin
+              MEM.Data[set][MEM.LRU[set]][0] = MEM.Victim[i][0];
+              MEM.Data[set][MEM.LRU[set]][1] = MEM.Victim[i][1];
+              MEM.Data[set][MEM.LRU[set]][2] = MEM.Victim[i][2];
+              MEM.Data[set][MEM.LRU[set]][3] = MEM.Victim[i][3];
+              MEM.Data[set][MEM.LRU[set]][4] = MEM.Victim[i][4];
+              MEM.Data[set][MEM.LRU[set]][5] = MEM.Victim[i][5];
+              MEM.Data[set][MEM.LRU[set]][6] = MEM.Victim[i][6];
+              MEM.Data[set][MEM.LRU[set]][7] = MEM.Victim[i][7];
+              MEM.Victim_Valid_Addr[i][64] = 0;
+            end
+            i = 16;
+            // Step Done Read
+            step = 2;
+          end
+        end
+        // use in MEM Step Done Read
+        if(MEM.Dirty[set][MEM.LRU[set]]) begin
+          write_addr = {{MEM.Valid_Tag[set][MEM.LRU[set]][t-1:0],set} << (b+y)};
+          write_Data[0] = MEM.Data[set][MEM.LRU[set]][0];
+          write_Data[1] = MEM.Data[set][MEM.LRU[set]][1];
+          write_Data[2] = MEM.Data[set][MEM.LRU[set]][2];
+          write_Data[3] = MEM.Data[set][MEM.LRU[set]][3];
+          write_Data[4] = MEM.Data[set][MEM.LRU[set]][4];
+          write_Data[5] = MEM.Data[set][MEM.LRU[set]][5];
+          write_Data[6] = MEM.Data[set][MEM.LRU[set]][6];
+          write_Data[7] = MEM.Data[set][MEM.LRU[set]][7];
+        end
+      end
+
+      // Address Valid
+      if(step == 0) begin
+        // Add Victim Cache
+        if(fetch_i_d == 3) begin
+          if(IF.Valid_Tag[set][IF.LRU[set]][t]) begin
+            // Check IF Victim index
+            index = 17;
+            for(int i=0; i<16; i++) begin
+              if(!IF.Victim_Valid_Addr[i][64]) begin
+                index = i;
+                i = 16;
+              end
+            end
+            if(index == 17) begin
+              index = num_clk % 16;
+            end
+            // Add IF Victim
+            IF.Victim[index][0] = IF.Data[set][IF.LRU[set]][0];
+            IF.Victim[index][1] = IF.Data[set][IF.LRU[set]][1];
+            IF.Victim[index][2] = IF.Data[set][IF.LRU[set]][2];
+            IF.Victim[index][3] = IF.Data[set][IF.LRU[set]][3];
+            IF.Victim[index][4] = IF.Data[set][IF.LRU[set]][4];
+            IF.Victim[index][5] = IF.Data[set][IF.LRU[set]][5];
+            IF.Victim[index][6] = IF.Data[set][IF.LRU[set]][6];
+            IF.Victim[index][7] = IF.Data[set][IF.LRU[set]][7];
+            IF.Victim_Valid_Addr[index][64] = 1;
+            IF.Victim_Valid_Addr[index][63:0] = {{IF.Valid_Tag[set][IF.LRU[set]][t-1:0],set} << (b+y)};
+          end
+        end else begin
+          if(MEM.Valid_Tag[set][MEM.LRU[set]][t]) begin
+            // Check MEM Victim index
+            index = 17;
+            for(int i=0; i<16; i++) begin
+              if(!MEM.Victim_Valid_Addr[i][64]) begin
+                index = i;
+                i = 16;
+              end
+            end
+            if(index == 17) begin
+              index = num_clk % 16;
+            end
+            // Add MEM Victim
+            MEM.Victim[index][0] = MEM.Data[set][MEM.LRU[set]][0];
+            MEM.Victim[index][1] = MEM.Data[set][MEM.LRU[set]][1];
+            MEM.Victim[index][2] = MEM.Data[set][MEM.LRU[set]][2];
+            MEM.Victim[index][3] = MEM.Data[set][MEM.LRU[set]][3];
+            MEM.Victim[index][4] = MEM.Data[set][MEM.LRU[set]][4];
+            MEM.Victim[index][5] = MEM.Data[set][MEM.LRU[set]][5];
+            MEM.Victim[index][6] = MEM.Data[set][MEM.LRU[set]][6];
+            MEM.Victim[index][7] = MEM.Data[set][MEM.LRU[set]][7];
+            MEM.Victim_Valid_Addr[index][64] = 1;
+            MEM.Victim_Valid_Addr[index][63:0] = {{MEM.Valid_Tag[set][MEM.LRU[set]][t-1:0],set} << (b+y)};
+          end
+        end
+        m_axi_arvalid <= 1;
+        m_axi_rready <= 1;
+        step = 1;
+      end
     end
   end
   // Data Read
@@ -130,17 +298,6 @@ always_ff @ (posedge clk) begin
     if(m_axi_rvalid) begin
       case (fetch_i_d)
         1, 2: begin
-          if((block_offset==0) & MEM.Dirty[set][MEM.LRU[set]]) begin
-            write_addr <= {{MEM.Valid_Tag[set][MEM.LRU[set]][t-1:0],set} << (b+y)};
-            write_Data[0] <= MEM.Data[set][MEM.LRU[set]][0];
-            write_Data[1] <= MEM.Data[set][MEM.LRU[set]][1];
-            write_Data[2] <= MEM.Data[set][MEM.LRU[set]][2];
-            write_Data[3] <= MEM.Data[set][MEM.LRU[set]][3];
-            write_Data[4] <= MEM.Data[set][MEM.LRU[set]][4];
-            write_Data[5] <= MEM.Data[set][MEM.LRU[set]][5];
-            write_Data[6] <= MEM.Data[set][MEM.LRU[set]][6];
-            write_Data[7] <= MEM.Data[set][MEM.LRU[set]][7];
-          end
           MEM.Data[set][MEM.LRU[set]][block_offset] <= m_axi_rdata;
           $display("Read MEM%d: araddr:%0x, data:%0x", fetch_i_d, m_axi_araddr, m_axi_rdata);
         end
@@ -153,11 +310,11 @@ always_ff @ (posedge clk) begin
       if (m_axi_rlast) begin
         m_axi_rready <= 0;
         m_axi_acready <= 1;
-        step <= 2;
+        step = 2;
       end
     end
   end
-  // Check Snoop
+  // Check Snoop & Done Read
   else if(step == 2) begin
     if(m_axi_acvalid && (m_axi_acsnoop == 4'hd)) begin
       $display("0: ac 0x%x == ar 0x%x", m_axi_acaddr, m_axi_araddr);
@@ -187,7 +344,7 @@ always_ff @ (posedge clk) begin
           end
           if(fetch_i_d == 1) begin
             MEM_miss1 = 0;
-            if(MEM_Write1) begin
+            if(MEM_Write1) begin // When 1 is a Write miss, write it in.
               MEM_Write1 = 0;
               case(MEM_Size1)
                 3'b000: begin
@@ -209,9 +366,9 @@ always_ff @ (posedge clk) begin
               endcase
               MEM.Dirty[set][MEM.LRU[set]] <= 1;
             end else MEM.Dirty[set][MEM.LRU[set]] <= 0;
-            // hazard
+            // Hazard: When both 1 and 2 miss and read the same address, cancel the other one.
             if(MEM_miss2 & ((Hazard_addr2[63:b+y]<<(b+y))==m_axi_araddr)) begin
-              if(MEM_Write2) begin
+              if(MEM_Write2) begin // When 2 is a Write miss, write it in.
                 MEM_Write2 = 0;
                 case(MEM_Size2)
                   3'b000: begin
@@ -238,7 +395,7 @@ always_ff @ (posedge clk) begin
             end
           end else begin
             MEM_miss2 = 0;
-            if(MEM_Write2) begin
+            if(MEM_Write2) begin // When 2 is a Write miss, write it in.
               MEM_Write2 = 0;
               case(MEM_Size2)
                 3'b000: begin
@@ -260,9 +417,9 @@ always_ff @ (posedge clk) begin
               endcase
               MEM.Dirty[set][MEM.LRU[set]] <= 1;
             end else MEM.Dirty[set][MEM.LRU[set]] <= 0;
-            // hazard
+            // Hazard: When both 1 and 2 miss and read the same address, cancel the other one.
             if(MEM_miss1 & ((Hazard_addr1[63:b+y]<<(b+y))==m_axi_araddr)) begin
-              if(MEM_Write1) begin
+              if(MEM_Write1) begin // When 1 is a Write miss, write it in.
                 MEM_Write1 = 0;
                 case(MEM_Size1)
                   3'b000: begin
@@ -299,10 +456,15 @@ always_ff @ (posedge clk) begin
           //IF_miss = 0;
         end
       endcase
+      fetch_i_d = 0;
       block_offset <= 0;
       m_axi_acready <= 0;
-      step <= 0;
+      step = 0;
     end
+  end
+  // use to print
+  if(step > 0)begin
+    num_axi <= num_axi+1;
   end
 end
 
@@ -470,6 +632,7 @@ wire  [63:0] PCD2;
 wire  [63:0] PCPlus4D2;
 // use to print
 wire  [63:0] num_clk;
+wire  [63:0] num_instr;
 always_ff @ (posedge clk) begin
   if(!StallD) enableD <= enableF;
   if(FlushD) begin
@@ -495,6 +658,8 @@ always_ff @ (posedge clk) begin
       instrD2 <= instrF2;
       PCD2 <= PCF2;
       PCPlus4D2 <= PCF2 + 4;
+      // use to print
+      num_instr <= num_instr+1;
     end
     // Finish
     if(instrF1 == 0) begin
@@ -586,7 +751,9 @@ rd_wb RD_WB(
   // use to print
   .PCD1(PCD1),
   .PCD2(PCD2),
-  .num_clk(num_clk)
+  .num_clk(num_clk),
+  .num_instr(num_instr),
+  .num_axi(num_axi)
 );
 
 //@@@ pipe_RD_ALU && pipe_WB_end @@@
@@ -734,6 +901,10 @@ always_ff @ (posedge clk) begin
     if(!StallW) begin
       if(RdW1==10 | RdW2==10) begin
           for(int i=0; i<32; i++) begin
+              if(i<16) begin
+                $display("IF.Victim %d: V:%d, Addr:%0x, Data0:%0x", i, IF.Victim_Valid_Addr[i][64], IF.Victim_Valid_Addr[i][63:0], IF.Victim[i][0]);
+                $display("MEM.Victim %d: V:%d, Addr:%0x, Data0:%0x", i, MEM.Victim_Valid_Addr[i][64], MEM.Victim_Valid_Addr[i][63:0], MEM.Victim[i][0]);
+              end
               $display("%2.2d:  0x%x (%0d)", i, RD_WB.registers[i], RD_WB.registers[i]);
           end
       end

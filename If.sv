@@ -6,7 +6,7 @@ module If
     s = 0, // Number of set index bits
     b = 0, // Number of block offset bits
     y = 0, // Number of byte offset bits
-    t = 0 // Number of tag bits
+    t = 0  // Number of tag bits
 )
 (
     //****** IF ******
@@ -26,6 +26,9 @@ module If
 reg [63:0] Data [S][N][B];
 reg [t:0] Valid_Tag [S][N];
 reg LRU [S];
+
+reg [63:0] Victim [16][B];
+reg [64:0] Victim_Valid_Addr [16];
 
 // Superscalar 1
 logic [t-1:0] tag1   = PCF1[63      : s+b+y];

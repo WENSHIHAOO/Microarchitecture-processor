@@ -52,7 +52,9 @@ module rd_wb
     // use to print
     input  [63:0] PCD1,
     input  [63:0] PCD2,
-    input  [63:0] num_clk
+    input  [63:0] num_clk,
+    input  [63:0] num_instr,
+    input  [63:0] num_axi
 );
 //****** RD ******
 //--- control_unit ---
@@ -530,7 +532,7 @@ always_comb begin
             do_ecall(a7, a0, a1, a2, a3, a4, a5, a6, a0);
             registers[10] = a0;
             // use to print
-            $display("num_clk:%0d", num_clk);
+            $display("num_clk:%0d  .  num_instr:%0d  .  num_axi:%0d", num_clk, num_instr, num_axi);
         end
     end
 
