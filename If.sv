@@ -15,7 +15,7 @@ module If
     output        enableF,
     output        IF_miss,
     output        pc8,
-    output [63:0] araddr,
+    output [63:0] IF_addr,
     // Superscalar 1
     input  [63:0] PCF1,
     output [31:0] instrF1,
@@ -39,30 +39,35 @@ always_ff @ (posedge clk) begin
     if(enable) begin
         // Superscalar 1
         if(Valid_Tag[set1][0][t] & (Valid_Tag[set1][0][t-1:0] == tag1)) begin
+            //$display("IF: addr(%0d): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({PCF1[63:3], 3'b000}), 
+            //Valid_Tag[PCF1[s+b+y-1 : b+y]][0][t], {Valid_Tag[PCF1[s+b+y-1 : b+y]][0][t-1:0], PCF1[s+b+y-1 : 0]}, Data[PCF1[s+b+y-1 : b+y]][0][PCF1[b+y-1 : y]], 
+            //Valid_Tag[PCF1[s+b+y-1 : b+y]][1][t], {Valid_Tag[PCF1[s+b+y-1 : b+y]][1][t-1:0], PCF1[s+b+y-1 : 0]}, Data[PCF1[s+b+y-1 : b+y]][1][PCF1[b+y-1 : y]]);
             if(PCF1[2]) begin
                 instrF1 = Data[set1][0][block1][63:32];
             end else begin
                 instrF1 = Data[set1][0][block1][31:0];
             end
             LRU[set1] = 1;
-            if(!IF_miss) enableF = 1;
         end
         else if(Valid_Tag[set1][1][t] & (Valid_Tag[set1][1][t-1:0] == tag1)) begin
+            //$display("IF: addr(%0d): V0:%0d, addr0:%0x, Data0:%0x, V1:%0d addr1:%0x, Data1:%0x", $signed({PCF1[63:3], 3'b000}), 
+            //Valid_Tag[PCF1[s+b+y-1 : b+y]][0][t], {Valid_Tag[PCF1[s+b+y-1 : b+y]][0][t-1:0], PCF1[s+b+y-1 : 0]}, Data[PCF1[s+b+y-1 : b+y]][0][PCF1[b+y-1 : y]], 
+            //Valid_Tag[PCF1[s+b+y-1 : b+y]][1][t], {Valid_Tag[PCF1[s+b+y-1 : b+y]][1][t-1:0], PCF1[s+b+y-1 : 0]}, Data[PCF1[s+b+y-1 : b+y]][1][PCF1[b+y-1 : y]]);
             if(PCF1[2]) begin
                 instrF1 = Data[set1][1][block1][63:32];
             end else begin
                 instrF1 = Data[set1][1][block1][31:0];
             end
             LRU[set1] = 0;
-            if(!IF_miss) enableF = 1;
         end
-        else if(!IF_miss) begin
-            araddr = PCF1;
+        else begin
+            if(!IF_miss) IF_addr = PCF1;
             enableF = 0;
             IF_miss = 1;
         end
         // Superscalar 2
         if(!IF_miss) begin
+            enableF = 1;
             case(instrF1[6:0])
                 //0,Finish //99,Type B //103,//115,Type I //111,Type J
                 0, 7'b1100011, 7'b1100111, 7'b1110011, 7'b1101111: begin

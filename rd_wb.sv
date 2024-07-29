@@ -51,13 +51,14 @@ module rd_wb
     input         EcallW2,
     // use to print
     input  [63:0] PCD1,
-    input  [63:0] PCD2
+    input  [63:0] PCD2,
+    input  [63:0] num_clk
 );
 //****** RD ******
+//--- control_unit ---
 // Superscalar 1
 always_comb begin
     if(enableD) begin
-        //--- control_unit ---
         RegWriteD1 = 0;
         ResultSrcD1 = 2'b00;
         MemWriteReadSizeD1 = 0;
@@ -95,9 +96,9 @@ always_comb begin
                     3'b011: ALUControlD1 = 18; // sltiu
                     3'b100: ALUControlD1 = 14; // xori
                     3'b101: begin
-                    case(instrD1[31:25])
-                        7'b0000000: ALUControlD1 = 2; // srli
-                        7'b0100000: ALUControlD1 = 3; // srai
+                    case(instrD1[31:26]) // NOT [31:25]
+                        7'b000000: ALUControlD1 = 2; // srli // NOT 7'b0000000
+                        7'b010000: ALUControlD1 = 3; // srai // NOT 7'b0100000
                     endcase
                     end
                     3'b110: ALUControlD1 = 15; // ori
@@ -272,14 +273,12 @@ always_comb begin
                     EcallD1 = 1; // ecall
                 end
             end
-            default: $display("rd_wb invalid %0x instrD1: '%x'", PCD1, instrD1);
         endcase
     end
 end
 // Superscalar 2
 always_comb begin
     if(enableD) begin
-        //--- control_unit ---
         RegWriteD2 = 0;
         ResultSrcD2 = 2'b00;
         MemWriteReadSizeD2 = 0;
@@ -317,9 +316,9 @@ always_comb begin
                     3'b011: ALUControlD2 = 18; // sltiu
                     3'b100: ALUControlD2 = 14; // xori
                     3'b101: begin
-                    case(instrD2[31:25])
-                        7'b0000000: ALUControlD2 = 2; // srli
-                        7'b0100000: ALUControlD2 = 3; // srai
+                    case(instrD2[31:26]) // NOT [31:25]
+                        7'b000000: ALUControlD2 = 2; // srli // NOT 7'b0000000
+                        7'b010000: ALUControlD2 = 3; // srai // NOT 7'b0100000
                     endcase
                     end
                     3'b110: ALUControlD2 = 15; // ori
@@ -495,12 +494,12 @@ always_comb begin
                     ALUControlD2 = 29;
                 end
             end
-            default: $display("rd_wb invalid %0x instrD1: '%x'", PCD2, instrD2);
         endcase
     end
 end
 
 //****** WB_RD ******
+//--- register_file ---
 logic [63:0] a0;
 logic [63:0] a1;
 logic [63:0] a2;
@@ -509,7 +508,6 @@ logic [63:0] a4;
 logic [63:0] a5;
 logic [63:0] a6;
 logic [63:0] a7;
-//--- register_file ---
 reg [63:0] registers [32]; // $0 is hardwired to the value zero
 always_comb begin
     //--- WB ---
@@ -531,7 +529,8 @@ always_comb begin
             $display("ecall: %0x, %0x, %0x, %0x, %0x, %0x, %0x, %0x, %0x", a7, a0, a1, a2, a3, a4, a5, a6, a0);
             do_ecall(a7, a0, a1, a2, a3, a4, a5, a6, a0);
             registers[10] = a0;
-            // not done
+            // use to print
+            $display("num_clk:%0d", num_clk);
         end
     end
 
