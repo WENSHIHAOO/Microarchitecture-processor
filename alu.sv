@@ -74,7 +74,7 @@ always_ff @ (posedge clk) begin
     BIA[index] <= I;
     BTA[index] <= T;
     V = 0;
-    $display("BTB!!!!!!!!!!!%x, %x, %x, %x", V, H, I, T);
+    $display("BTB!!!!!!!!!!!%d, %x, %x, %x, %x", index, V, H, I, T);
   end
 end
 //****** ALU ******

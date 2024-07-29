@@ -40,6 +40,7 @@ module rd_wb
     output BranchD2,
     output        EcallD2,
     //****** WB ******
+    output m_axi_acready,
     output enableW,
     // Superscalar 1
     input  [4:0]  RdW1,
@@ -537,6 +538,7 @@ always_comb begin
             $display("ecall: %0x, %0x, %0x, %0x, %0x, %0x, %0x, %0x, %0x", a7, a0, a1, a2, a3, a4, a5, a6, a0);
             do_ecall(a7, a0, a1, a2, a3, a4, a5, a6, a0);
             registers[10] = a0;
+            m_axi_acready = 1;
             // use to print
             $display("num_clk:%0d  .  num_instr:%0d  .  num_axi:%0d", num_clk, num_instr, num_axi);
         end
