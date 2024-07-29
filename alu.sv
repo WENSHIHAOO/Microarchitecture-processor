@@ -1,4 +1,8 @@
 module alu
+#(
+    B_N = 0, // Number of ways of BTB
+    B_H = 0  // Number of history bits
+)
 (
   //****** ALU ******
   input  clk,
@@ -53,10 +57,10 @@ module alu
   input  [31:0] instrE2
 );
 //****** Branch Prediction ******
-reg          Valid [64];
-reg   [1:0]  BH    [64]; // Branch history
-reg   [63:0] BIA   [64]; // Branch instruction address field
-reg   [63:0] BTA   [64]; // Branch target address field
+reg          Valid [B_N];
+reg[B_H-1:0] BH    [B_N]; // Branch history
+reg   [63:0] BIA   [B_N]; // Branch instruction address field
+reg   [63:0] BTA   [B_N]; // Branch target address field
 logic [6:0]  index;
 logic        exist;
 logic        V; // Valid
@@ -324,9 +328,9 @@ always_comb begin
     //****** Branch Prediction ******
     PCSrcE1 = 0;
     if(ZeroE1) begin // JumpE == 1 | (BranchE == 1 & Result of BranchE == True)
-      index = 64;
+      index = B_N;
       exist = 0;
-      for(int i=0; i<64; i++) begin
+      for(int i=0; i<B_N; i++) begin
         $display("%d: V:%d, BH:%0x, BIA:%0x, BTA:%0x", i, Valid[i], BH[i], BIA[i], BTA[i]);
         if(Valid[i]) begin
           if(BIA[i] == PCE1) begin
@@ -350,11 +354,11 @@ always_comb begin
             end
             exist = 1;
             index = i;
-            i = 64;
+            i = B_N;
           end
         end else index = i;
       end
-      if(index == 64) index = num_clk % 64;
+      if(index == B_N) index = num_clk % B_N;
       if(!exist) begin
         V = 1;
         H = 1;
@@ -364,6 +368,21 @@ always_comb begin
       if(PCD1 != PCTargetE) PCSrcE1 = 1;
     end else begin // JumpE == 0 | BranchE == 0 | (BranchE == 1 & Result of BranchE == False)
       if(BranchE1) begin
+        for(int i=0; i<B_N; i++) begin
+          if(Valid[i] & (BIA[i] == PCE1) & (BTA[i] == PCTargetE)) begin
+            if(BH[i] > 1) begin
+              V = 1;
+              H = BH[i]-1;
+            end else begin
+              V = 0;
+              H = 0;
+            end
+            index = i;
+            I = BIA[i];
+            T = BTA[i];
+            i = B_N;
+          end
+        end
         if(PCD1 != PCE1 + 4) begin
           PCSrcE1 = 1;
           PCTargetE = PCE1 + 4;
@@ -594,9 +613,9 @@ always_comb begin
     //****** Branch Prediction ******
     PCSrcE2 = 0;
     if(ZeroE2) begin // JumpE == 1 | (BranchE == 1 & Result of BranchE == True）
-      index = 64;
+      index = B_N;
       exist = 0;
-      for(int i=0; i<64; i++) begin
+      for(int i=0; i<B_N; i++) begin
         $display("%d: V:%d, BH:%0x, BIA:%0x, BTA:%0x", i, Valid[i], BH[i], BIA[i], BTA[i]);
         if(Valid[i]) begin
           if(BIA[i] == PCE2) begin
@@ -620,11 +639,11 @@ always_comb begin
             end
             exist = 1;
             index = i;
-            i = 64;
+            i = B_N;
           end
         end else index = i;
       end
-      if(index == 64) index = num_clk % 64;
+      if(index == B_N) index = num_clk % B_N;
       if(!exist) begin
         V = 1;
         H = 1;
@@ -634,6 +653,21 @@ always_comb begin
       if(PCD1 != PCTargetE) PCSrcE2 = 1;
     end else begin // JumpE == 0 | BranchE == 0 | (BranchE == 1 & Result of BranchE == False)
       if(BranchE2) begin
+        for(int i=0; i<B_N; i++) begin
+          if(Valid[i] & (BIA[i] == PCE2) & (BTA[i] == PCTargetE)) begin
+            if(BH[i] > 1) begin
+              V = 1;
+              H = BH[i]-1;
+            end else begin
+              V = 0;
+              H = 0;
+            end
+            index = i;
+            I = BIA[i];
+            T = BTA[i];
+            i = B_N;
+          end
+        end
         if(PCD1 != PCE2 + 4) begin
           PCTargetE = PCE2 + 4;
           PCSrcE2 = 1;

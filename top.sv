@@ -63,6 +63,7 @@ module top
   input   wire [ADDR_WIDTH-1:0]  m_axi_acaddr,
   input   wire [3:0]             m_axi_acsnoop
 );
+// 2 Way Set Associative Cache Constants
 localparam C = 16 * 1024;                // Cache size (bytes), not including overhead such as the valid, tag, LRU, and dirty bits
 localparam N = 2;                        // Number of ways per set
 localparam B = 8;                        // Block size (bytes)
@@ -71,6 +72,11 @@ localparam s = 10;   //log2(S)           // Number of set index bits
 localparam b = 3;    //log2(B)           // Number of block offset bits
 localparam y = 3;                        // Number of byte offset bits
 localparam t = ADDR_WIDTH - (s + b + y); // Number of tag bits
+// Fully Associative Victim Cache Constants
+localparam V_N = 16;                     // Number of ways of Victim
+// Fully Associative Branch Target Buffer (BTB) Constants
+localparam B_N = 64;                     // Number of ways of BTB
+localparam B_H = 2;                      // Number of history bits
 //--- AXI Read Data ---
 wire  IF_miss;
 wire  MEM_miss1;
@@ -122,7 +128,7 @@ always_ff @ (posedge clk) begin
     if(fetch_i_d > 0) begin
       if(fetch_i_d == 3) begin
         // Check IF Victim Cache
-        for(int i=0; i<32; i++) begin
+        for(int i=0; i<V_N; i++) begin
           if(IF.Victim_Valid_Addr[i][64] & (IF.Victim_Valid_Addr[i][63:0]==IF_addr)) begin
             if(IF.Valid_Tag[set][IF.LRU[set]][t]) begin
               write_Data[0] = IF.Victim[i][0];
@@ -164,14 +170,14 @@ always_ff @ (posedge clk) begin
               IF.Data[set][IF.LRU[set]][6] = IF.Victim[i][6];
               IF.Data[set][IF.LRU[set]][7] = IF.Victim[i][7];
             end
-            i = 32;
+            i = V_N;
             // Step Done Read
             step = 2;
           end
         end
       end else begin
         // Check MEM Victim Cache
-        for(int i=0; i<32; i++) begin
+        for(int i=0; i<V_N; i++) begin
           if(MEM.Victim_Valid_Addr[i][64] & (MEM.Victim_Valid_Addr[i][63:0]=={{tag,set}<<(b+y)})) begin
             if(MEM.Valid_Tag[set][MEM.LRU[set]][t]) begin
               write_Data[0] = MEM.Data[set][MEM.LRU[set]][0];
@@ -213,7 +219,7 @@ always_ff @ (posedge clk) begin
               MEM.Data[set][MEM.LRU[set]][7] = MEM.Victim[i][7];
               MEM.Victim_Valid_Addr[i][64] = 0;
             end
-            i = 32;
+            i = V_N;
             // Step Done Read
             step = 2;
           end
@@ -238,14 +244,14 @@ always_ff @ (posedge clk) begin
         if(fetch_i_d == 3) begin
           if(IF.Valid_Tag[set][IF.LRU[set]][t]) begin
             // Check IF Victim index
-            index = 32;
-            for(int i=0; i<32; i++) begin
+            index = V_N;
+            for(int i=0; i<V_N; i++) begin
               if(!IF.Victim_Valid_Addr[i][64]) begin
                 index = i;
-                i = 32;
+                i = V_N;
               end
             end
-            if(index == 32) index = num_clk % 32;
+            if(index == V_N) index = num_clk % V_N;
             // Add IF Victim
             IF.Victim[index][0] = IF.Data[set][IF.LRU[set]][0];
             IF.Victim[index][1] = IF.Data[set][IF.LRU[set]][1];
@@ -261,14 +267,14 @@ always_ff @ (posedge clk) begin
         end else begin
           if(MEM.Valid_Tag[set][MEM.LRU[set]][t]) begin
             // Check MEM Victim index
-            index = 32;
-            for(int i=0; i<32; i++) begin
+            index = V_N;
+            for(int i=0; i<V_N; i++) begin
               if(!MEM.Victim_Valid_Addr[i][64]) begin
                 index = i;
-                i = 32;
+                i = V_N;
               end
             end
-            if(index == 32) index = num_clk % 32;
+            if(index == V_N) index = num_clk % V_N;
             // Add MEM Victim
             MEM.Victim[index][0] = MEM.Data[set][MEM.LRU[set]][0];
             MEM.Victim[index][1] = MEM.Data[set][MEM.LRU[set]][1];
@@ -585,22 +591,24 @@ always_ff @ (posedge clk) begin
       end
 
       //****** Branch Prediction ******
-      B_index = 64;
-      for(int i=0; i<64; i++) begin
-        if(ALU.Valid[i]) begin
-          if(pc == ALU.BIA[i]) begin
-            B_pc = 1;
-            B_index = i;
-            i = 64;
-          end else if((pc+4) == ALU.BIA[i]) begin
-            B_pc = 2;
-            B_index = i;
+      if(B_pc == 0) begin
+        B_index = B_N;
+        for(int i=0; i<B_N; i++) begin
+          if(ALU.Valid[i]) begin
+            if(pc == ALU.BIA[i]) begin
+              B_pc = 1;
+              B_index = i;
+              i = B_N;
+            end else if((pc+4) == ALU.BIA[i]) begin
+              B_pc = 2;
+              B_index = i;
+            end
           end
         end
-      end
-      if(B_pc > 0 & B_index < 64) begin
-        $display("!!!!!!!!!!!!!!%d: V:%d, BH:%0x, BIA:%0x, BTA:%0x, PCF1:%0x, PCF2:%0x", B_index, ALU.Valid[B_index], ALU.BH[B_index], ALU.BIA[B_index], ALU.BTA[B_index], pc, pc+4);
-        pc = ALU.BTA[B_index];
+        if(B_pc > 0 & B_index < B_N) begin
+          $display("!!!!!!!!!!!!!!%d: V:%d, BH:%0x, BIA:%0x, BTA:%0x, PCF1:%0x, PCF2:%0x", B_index, ALU.Valid[B_index], ALU.BH[B_index], ALU.BIA[B_index], ALU.BTA[B_index], pc, pc+4);
+          pc = ALU.BTA[B_index];
+        end
       end
     end 
   end
@@ -617,7 +625,8 @@ If #(.N(N),
      .s(s),
      .b(b),
      .y(y),
-     .t(t)
+     .t(t),
+     .V_N(V_N)
 )IF(
   .clk(clk),
   .enable(enable),
@@ -928,7 +937,7 @@ always_ff @ (posedge clk) begin
     if(!StallW) begin
       if(RdW1==10 | RdW2==10) begin
         /*
-        for(int i=0; i<32; i++) begin
+        for(int i=0; i<V_N; i++) begin
           $display("IF.Victim %d: V:%d, Addr:%0x, Data0:%0x", i, IF.Victim_Valid_Addr[i][64], IF.Victim_Valid_Addr[i][63:0], IF.Victim[i][0]);
           $display("MEM.Victim %d: V:%d, Addr:%0x, Data0:%0x", i, MEM.Victim_Valid_Addr[i][64], MEM.Victim_Valid_Addr[i][63:0], MEM.Victim[i][0]);
         end
@@ -961,7 +970,9 @@ wire [2:0]  FrowardBE2;
 wire [63:0] ALUResultE2;
 wire [63:0] WriteDataE2;
 wire [63:0] ALUResultM2;
-alu ALU(
+alu #(.B_N(B_N),
+      .B_H(B_H)
+)ALU(
   .clk(clk),
   .enableE(enableE),
   .StallE(StallE),
@@ -1078,7 +1089,8 @@ mem #(.N(N),
       .s(s),
       .b(b),
       .y(y),
-      .t(t)
+      .t(t),
+      .V_N(V_N)
 )MEM(
   .clk(clk),
   .enableM(enableM),
