@@ -10,8 +10,8 @@ Some instructions for the project
 
 1. Building/Running your simulator code
 
-> make // build code
-> make run // run code
+i.  make // build code
+ii. make run // run code
 
 2. Change the test case
 
@@ -47,10 +47,10 @@ prog2: 41111      |  0.9%
 prog3: 712499     |  28.7%
 prog4: 19744985   |  17.1%
 
-       #Branches  |  #Mispredictions |  Prediction Rate
-prog1: 1450       |  593             |  59.1%
-prog2: 976        |  392             |  59.8%
-prog3: 223618     |  6086            |  97.3%
-prog4: 4879941    |  782347          |  84%
+    Number of Branches  |  Number of Mispredictions |  Prediction Rate
+prog1: 1450             |  593                      |  59.1%
+prog2: 976              |  392                      |  59.8%
+prog3: 223618           |  6086                     |  97.3%
+prog4: 4879941          |  782347                   |  84%
 
 In fact, the processor's computing speed has increased a lot. But it takes 100 clock cycles to access the memory, which greatly reduces the effective performance improvement, making the actual performance improvement particularly low.
