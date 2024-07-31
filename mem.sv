@@ -11,32 +11,32 @@ module mem
 )
 (
     //****** MEM ******
-    input  clk,
-    input         enableM,
-    output        Stall_miss1,
-    output        Stall_miss2,
-    output        MEM_miss1,
-    output        MEM_miss2,
-    output [63:0] MEM_addr1,
-    output [63:0] MEM_addr2,
-    output [63:0] Hazard_addr1,
-    output [63:0] Hazard_addr2,
-    output        MEM_Write1,
-    output [2:0]  MEM_Size1,
-    output [63:0] MEM_Data1,
-    output        MEM_Write2,
-    output [2:0]  MEM_Size2,
-    output [63:0] MEM_Data2,
+    input  reg clk,
+    input  reg        enableM,
+    output reg        Stall_miss1,
+    output reg        Stall_miss2,
+    output reg        MEM_miss1,
+    output reg        MEM_miss2,
+    output reg [63:0] MEM_addr1,
+    output reg [63:0] MEM_addr2,
+    output reg [63:0] Hazard_addr1,
+    output reg [63:0] Hazard_addr2,
+    output reg        MEM_Write1,
+    output reg [2:0]  MEM_Size1,
+    output reg [63:0] MEM_Data1,
+    output reg        MEM_Write2,
+    output reg [2:0]  MEM_Size2,
+    output reg [63:0] MEM_Data2,
     // Superscalar 1
-    input  [4:0]  MemWriteReadSizeM1,
-    input  [63:0] ALUResultM1,
-    input  [63:0] WriteDataM1,
-    output [63:0] ReadDataM1,
+    input  reg [4:0]  MemWriteReadSizeM1,
+    input  reg [63:0] ALUResultM1,
+    input  reg [63:0] WriteDataM1,
+    output reg [63:0] ReadDataM1,
     // Superscalar 2
-    input  [4:0]  MemWriteReadSizeM2,
-    input  [63:0] ALUResultM2,
-    input  [63:0] WriteDataM2,
-    output [63:0] ReadDataM2
+    input  reg [4:0]  MemWriteReadSizeM2,
+    input  reg [63:0] ALUResultM2,
+    input  reg [63:0] WriteDataM2,
+    output reg [63:0] ReadDataM2
 );
 reg [63:0] Data [S][N][B];
 reg [t:0] Valid_Tag [S][N];

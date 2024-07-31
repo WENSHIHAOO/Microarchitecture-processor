@@ -11,18 +11,18 @@ module If
 )
 (
     //****** IF ******
-    input  clk,
-    input         enable,
-    output        enableF,
-    output        IF_miss,
-    output        pc8,
-    output [63:0] IF_addr,
+    input  reg clk,
+    input  reg        enable,
+    output reg        enableF,
+    output reg        IF_miss,
+    output reg        pc8,
+    output reg [63:0] IF_addr,
     // Superscalar 1
-    input  [63:0] PCF1,
-    output [31:0] instrF1,
+    input  reg [63:0] PCF1,
+    output reg [31:0] instrF1,
     // Superscalar 2
-    input  [63:0] PCF2,
-    output [31:0] instrF2
+    input  reg [63:0] PCF2,
+    output reg [31:0] instrF2
 );
 reg [63:0] Data [S][N][B];
 reg [t:0] Valid_Tag [S][N];

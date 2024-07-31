@@ -23,45 +23,45 @@ module top
   input  [63:0] satp,
 
   // interface to connect to the bus
-  output  wire [ID_WIDTH-1:0]    m_axi_awid,
-  output  wire [ADDR_WIDTH-1:0]  m_axi_awaddr, // Write address. The write address gives the address of the first transfer in a write burst transaction.
-  output  wire [7:0]             m_axi_awlen,  // Burst length. The burst length gives the exact number of transfers in a burst. This information determines the number of data transfers associated with the address.Burst_Length = AWLEN[7:0] + 1
-  output  wire [2:0]             m_axi_awsize, // Burst size. This signal indicates the size of each transfer in the burst.Burst_Size = 2^AWSIZE[2:0]
-  output  wire [1:0]             m_axi_awburst,// Burst type. The burst type and the size information, determine how the address for each transfer within the burst is calculated.Burst_Type: "00" = FIXED; "01" = INCR; "10" = WRAP
-  output  wire                   m_axi_awlock, // Lock type. Provides additional information about the atomic characteristics of the transfer.Atomic_Access: '0' Normal; '1' Exclusive
-  output  wire [3:0]             m_axi_awcache,// Memory type. This signal indicates how transactions are required to progress through a system.Memory_Attributes:□	AWCACHE[0] Bufferable□	AWCACHE[1] Cacheable□	AWCACHE[2] Read-allocate□	AWCACHE[3] Write-allocate
-  output  wire [2:0]             m_axi_awprot, // Protection type. This signal indicates the privilege and security level of the transaction, and whether the transaction is a data access or an instruction access.Access_Permissions:□	AWPROT[0] Privileged□	AWPROT[1] Non-secure□	AWPROT[2] Instruction
-  output  wire                   m_axi_awvalid,// Write address valid. This signal indicates that the channel is signaling valid write address and control information.
-  input   wire                   m_axi_awready,// Write address ready. This signal indicates that the slave is ready to accept an address and associated control signals.
-  output  wire [DATA_WIDTH-1:0]  m_axi_wdata,  // Write data.
-  output  wire [STRB_WIDTH-1:0]  m_axi_wstrb,  // Write strobes. This signal indicates which byte lanes hold valid data. There is one write strobe bit for each eight bits of the write data bus.
-  output  wire                   m_axi_wlast,  // Write last. This signal indicates the last transfer in a write burst.
-  output  wire                   m_axi_wvalid, // Write valid. This signal indicates that valid write data and strobes are available.
-  input   wire                   m_axi_wready, // Write ready. This signal indicates that the slave can accept the write data.
-  input   wire [ID_WIDTH-1:0]    m_axi_bid,
-  input   wire [1:0]             m_axi_bresp,  // Write response. This signal indicates the status of the write transaction.Response:□	"00" = OKAY□	"01" = EXOKAY□	"10" = SLVERR□	"11" = DECERR
-  input   wire                   m_axi_bvalid, // Write response valid. This signal indicates that the channel is signaling a valid write response.
-  output  wire                   m_axi_bready, // Response ready. This signal indicates that the master can accept a write response.
-  output  wire [ID_WIDTH-1:0]    m_axi_arid,
-  output  wire [ADDR_WIDTH-1:0]  m_axi_araddr, // Read address. The read address gives the address of the first transfer in a read burst transaction.
-  output  wire [7:0]             m_axi_arlen,  // Burst length. The burst length gives the exact number of transfers in a burst. This information determines the number of data transfers associated with the address.Burst_Length = ARLEN[7:0] + 1
-  output  wire [2:0]             m_axi_arsize, // Burst size. This signal indicates the size of each transfer in the burst.Burst_Size = 2^ARSIZE[2:0]
-  output  wire [1:0]             m_axi_arburst,// Burst type. The burst type and the size information, determine how the address for each transfer within the burst is calculated.Burst_Type: "00" = FIXED; "01" = INCR; "10" = WRAP
-  output  wire                   m_axi_arlock, // Lock type. Provides additional information about the atomic characteristics of the transfer.Atomic_Access: '0' Normal; '1' Exclusive
-  output  wire [3:0]             m_axi_arcache,// Memory type. This signal indicates how transactions are required to progress through a system.Memory_Attributes:□	ARCACHE[0] Bufferable□	ARCACHE[1] Cacheable□	ARCACHE[2] Read-allocate□	ARCACHE[3] Write-allocate
-  output  wire [2:0]             m_axi_arprot, // Protection type. This signal indicates the privilege and security level of the transaction, and whether the transaction is a data access or an instruction access.Access_Permissions:□	ARPROT[0] Privileged□	ARPROT[1] Non-secure□	ARPROT[2] Instruction
-  output  wire                   m_axi_arvalid,// Read address valid. This signal indicates that the channel is signaling valid read address and control information.
-  input   wire                   m_axi_arready,// Read address ready. This signal indicates that the slave is ready to accept an address and associated control signals.
-  input   wire [ID_WIDTH-1:0]    m_axi_rid,
-  input   wire [DATA_WIDTH-1:0]  m_axi_rdata,  // Read data.
-  input   wire [1:0]             m_axi_rresp,  // Read response. This signal indicates the status of the read transfer.Response: "00" = OKAY; "01" = EXOKAY; "10" = SLVERR; “11” = DECERR
-  input   wire                   m_axi_rlast,  // Read last. This signal indicates the last transfer in a read burst.
-  input   wire                   m_axi_rvalid, // Read valid. This signal indicates that the channel is signaling the required read data.
-  output  wire                   m_axi_rready, // Read ready. This signal indicates that the master can accept the read data and response information.
-  input   wire                   m_axi_acvalid,
-  output  wire                   m_axi_acready,
-  input   wire [ADDR_WIDTH-1:0]  m_axi_acaddr,
-  input   wire [3:0]             m_axi_acsnoop
+  output  reg [ID_WIDTH-1:0]    m_axi_awid,
+  output  reg [ADDR_WIDTH-1:0]  m_axi_awaddr, // Write address. The write address gives the address of the first transfer in a write burst transaction.
+  output  reg [7:0]             m_axi_awlen,  // Burst length. The burst length gives the exact number of transfers in a burst. This information determines the number of data transfers associated with the address.Burst_Length = AWLEN[7:0] + 1
+  output  reg [2:0]             m_axi_awsize, // Burst size. This signal indicates the size of each transfer in the burst.Burst_Size = 2^AWSIZE[2:0]
+  output  reg [1:0]             m_axi_awburst,// Burst type. The burst type and the size information, determine how the address for each transfer within the burst is calculated.Burst_Type: "00" = FIXED; "01" = INCR; "10" = WRAP
+  output  reg                   m_axi_awlock, // Lock type. Provides additional information about the atomic characteristics of the transfer.Atomic_Access: '0' Normal; '1' Exclusive
+  output  reg [3:0]             m_axi_awcache,// Memory type. This signal indicates how transactions are required to progress through a system.Memory_Attributes:□	AWCACHE[0] Bufferable□	AWCACHE[1] Cacheable□	AWCACHE[2] Read-allocate□	AWCACHE[3] Write-allocate
+  output  reg [2:0]             m_axi_awprot, // Protection type. This signal indicates the privilege and security level of the transaction, and whether the transaction is a data access or an instruction access.Access_Permissions:□	AWPROT[0] Privileged□	AWPROT[1] Non-secure□	AWPROT[2] Instruction
+  output  reg                   m_axi_awvalid,// Write address valid. This signal indicates that the channel is signaling valid write address and control information.
+  input   reg                   m_axi_awready,// Write address ready. This signal indicates that the slave is ready to accept an address and associated control signals.
+  output  reg [DATA_WIDTH-1:0]  m_axi_wdata,  // Write data.
+  output  reg [STRB_WIDTH-1:0]  m_axi_wstrb,  // Write strobes. This signal indicates which byte lanes hold valid data. There is one write strobe bit for each eight bits of the write data bus.
+  output  reg                   m_axi_wlast,  // Write last. This signal indicates the last transfer in a write burst.
+  output  reg                   m_axi_wvalid, // Write valid. This signal indicates that valid write data and strobes are available.
+  input   reg                   m_axi_wready, // Write ready. This signal indicates that the slave can accept the write data.
+  input   reg [ID_WIDTH-1:0]    m_axi_bid,
+  input   reg [1:0]             m_axi_bresp,  // Write response. This signal indicates the status of the write transaction.Response:□	"00" = OKAY□	"01" = EXOKAY□	"10" = SLVERR□	"11" = DECERR
+  input   reg                   m_axi_bvalid, // Write response valid. This signal indicates that the channel is signaling a valid write response.
+  output  reg                   m_axi_bready, // Response ready. This signal indicates that the master can accept a write response.
+  output  reg [ID_WIDTH-1:0]    m_axi_arid,
+  output  reg [ADDR_WIDTH-1:0]  m_axi_araddr, // Read address. The read address gives the address of the first transfer in a read burst transaction.
+  output  reg [7:0]             m_axi_arlen,  // Burst length. The burst length gives the exact number of transfers in a burst. This information determines the number of data transfers associated with the address.Burst_Length = ARLEN[7:0] + 1
+  output  reg [2:0]             m_axi_arsize, // Burst size. This signal indicates the size of each transfer in the burst.Burst_Size = 2^ARSIZE[2:0]
+  output  reg [1:0]             m_axi_arburst,// Burst type. The burst type and the size information, determine how the address for each transfer within the burst is calculated.Burst_Type: "00" = FIXED; "01" = INCR; "10" = WRAP
+  output  reg                   m_axi_arlock, // Lock type. Provides additional information about the atomic characteristics of the transfer.Atomic_Access: '0' Normal; '1' Exclusive
+  output  reg [3:0]             m_axi_arcache,// Memory type. This signal indicates how transactions are required to progress through a system.Memory_Attributes:□	ARCACHE[0] Bufferable□	ARCACHE[1] Cacheable□	ARCACHE[2] Read-allocate□	ARCACHE[3] Write-allocate
+  output  reg [2:0]             m_axi_arprot, // Protection type. This signal indicates the privilege and security level of the transaction, and whether the transaction is a data access or an instruction access.Access_Permissions:□	ARPROT[0] Privileged□	ARPROT[1] Non-secure□	ARPROT[2] Instruction
+  output  reg                   m_axi_arvalid,// Read address valid. This signal indicates that the channel is signaling valid read address and control information.
+  input   reg                   m_axi_arready,// Read address ready. This signal indicates that the slave is ready to accept an address and associated control signals.
+  input   reg [ID_WIDTH-1:0]    m_axi_rid,
+  input   reg [DATA_WIDTH-1:0]  m_axi_rdata,  // Read data.
+  input   reg [1:0]             m_axi_rresp,  // Read response. This signal indicates the status of the read transfer.Response: "00" = OKAY; "01" = EXOKAY; "10" = SLVERR; “11” = DECERR
+  input   reg                   m_axi_rlast,  // Read last. This signal indicates the last transfer in a read burst.
+  input   reg                   m_axi_rvalid, // Read valid. This signal indicates that the channel is signaling the required read data.
+  output  reg                   m_axi_rready, // Read ready. This signal indicates that the master can accept the read data and response information.
+  input   reg                   m_axi_acvalid,
+  output  reg                   m_axi_acready,
+  input   reg [ADDR_WIDTH-1:0]  m_axi_acaddr,
+  input   reg [3:0]             m_axi_acsnoop
 );
 // 2 Way Set Associative Cache Constants
 localparam C = 32 * 1024;                // Cache size (bytes), not including overhead such as the valid, tag, LRU, and dirty bits
@@ -99,20 +99,20 @@ always_ff @ (posedge clk) begin
 end
 
 //--- AXI Read Data ---
-wire  IF_miss;
-wire  MEM_miss1;
-wire  MEM_miss2;
-wire  [63:0]  IF_addr;
-wire  [63:0]  MEM_addr1;
-wire  [63:0]  MEM_addr2;
-wire  [63:0]  Hazard_addr1;
-wire  [63:0]  Hazard_addr2;
-wire          MEM_Write1;
-wire  [2:0]   MEM_Size1;
-wire  [63:0]  MEM_Data1;
-wire          MEM_Write2;
-wire  [2:0]   MEM_Size2;
-wire  [63:0]  MEM_Data2;
+reg  IF_miss;
+reg  MEM_miss1;
+reg  MEM_miss2;
+reg  [63:0]  IF_addr;
+reg  [63:0]  MEM_addr1;
+reg  [63:0]  MEM_addr2;
+reg  [63:0]  Hazard_addr1;
+reg  [63:0]  Hazard_addr2;
+reg          MEM_Write1;
+reg  [2:0]   MEM_Size1;
+reg  [63:0]  MEM_Data1;
+reg          MEM_Write2;
+reg  [2:0]   MEM_Size2;
+reg  [63:0]  MEM_Data2;
 logic [1:0]   fetch_i_d;
 logic step;
 logic done_read;
@@ -469,7 +469,7 @@ always_ff @ (posedge clk) begin
 end
 
 //--- AXI Write Data ---
-wire  [1:0]  write_step;
+reg  [1:0]  write_step;
 logic [2:0]  write_block_offset;
 always_ff @ (posedge clk) begin
   // Address Write
@@ -505,21 +505,21 @@ end
 //****** begin ******
 logic [1:0] B_pc;
 logic [6:0] B_index;
-wire [63:0] pc;
-wire        pc8;
+reg [63:0] pc;
+reg        pc8;
 // Superscalar 1
-wire [63:0] PCF1;
+reg [63:0] PCF1;
 // Superscalar 2
-wire [63:0] PCF2;
-wire        enable;
-wire        enableF;
+reg [63:0] PCF2;
+reg        enable;
+reg        enableF;
 // hazard
-wire  StallF;
+reg  StallF;
 // jump & branch
-wire        j_b;
-wire        PCSrcE1;
-wire        PCSrcE2;
-wire [63:0] PCTargetE;
+reg        j_b;
+reg        PCSrcE1;
+reg        PCSrcE2;
+reg [63:0] PCTargetE;
 always_ff @ (posedge clk) begin
   if(reset) begin
     RD_WB.registers[2] = stackptr;
@@ -557,10 +557,7 @@ always_ff @ (posedge clk) begin
   end else begin
     if(enable) begin
       if((PCSrcE1|PCSrcE2) & (PCTargetE>0)) begin
-        if(enableF & !StallF) begin
-          j_b = 1;
-          num_noPrediction <= num_noPrediction + 1;
-        end
+        if(enableF & !StallF) j_b = 1;
         pc = PCTargetE;
         // Superscalar 1
         PCF1 <= pc;
@@ -612,9 +609,9 @@ end
 
 //****** IF ******
 // Superscalar 1
-wire [31:0] instrF1;
+reg [31:0] instrF1;
 // Superscalar 2
-wire [31:0] instrF2;
+reg [31:0] instrF2;
 If #(.N(N),
      .B(B),
      .S(S),
@@ -639,24 +636,22 @@ If #(.N(N),
 );
 
 //@@@ pipe_IF_RD @@@
-wire  [63:0] num_clk;
-wire  [63:0] num_branch;
-wire  [63:0] num_noPrediction;
-wire  finishD;
+reg  [63:0] num_clk;
+reg  finishD;
 //--- hazard ---
-wire  StallD;
-wire  FlushD;
+reg  StallD;
+reg  FlushD;
 //--- enable ---
-wire  enableD;
+reg  enableD;
 //--- pipe ---
 // Superscalar 1
-wire  [31:0] instrD1;
-wire  [63:0] PCD1;
-wire  [63:0] PCPlus4D1;
+reg  [31:0] instrD1;
+reg  [63:0] PCD1;
+reg  [63:0] PCPlus4D1;
 // Superscalar 2
-wire  [31:0] instrD2;
-wire  [63:0] PCD2;
-wire  [63:0] PCPlus4D2;
+reg  [31:0] instrD2;
+reg  [63:0] PCD2;
+reg  [63:0] PCPlus4D2;
 always_ff @ (posedge clk) begin
   num_clk <= num_clk+1;
   if(!StallD) enableD <= enableF;
@@ -690,35 +685,35 @@ end
 
 //****** RD | WB ******
 // Superscalar 1
-wire [63:0] RD1D1;
-wire [63:0] RD2D1;
-wire        RegWriteD1;
-wire [1:0]  ResultSrcD1;
-wire [4:0]  MemWriteReadSizeD1;
-wire [5:0]  ALUControlD1;
-wire        ALUSrcD1;
-wire [63:0] ImmExtD1;
-wire [4:0]  Rs1D1;
-wire [4:0]  Rs2D1;
-wire [4:0]  RdD1;
-wire  JumpD1;
-wire  BranchD1;
-wire        EcallD1;
+reg [63:0] RD1D1;
+reg [63:0] RD2D1;
+reg        RegWriteD1;
+reg [1:0]  ResultSrcD1;
+reg [4:0]  MemWriteReadSizeD1;
+reg [5:0]  ALUControlD1;
+reg        ALUSrcD1;
+reg [63:0] ImmExtD1;
+reg [4:0]  Rs1D1;
+reg [4:0]  Rs2D1;
+reg [4:0]  RdD1;
+reg  JumpD1;
+reg  BranchD1;
+reg        EcallD1;
 // Superscalar 2
-wire [63:0] RD1D2;
-wire [63:0] RD2D2;
-wire        RegWriteD2;
-wire [1:0]  ResultSrcD2;
-wire [4:0]  MemWriteReadSizeD2;
-wire [5:0]  ALUControlD2;
-wire        ALUSrcD2;
-wire [63:0] ImmExtD2;
-wire [4:0]  Rs1D2;
-wire [4:0]  Rs2D2;
-wire [4:0]  RdD2;
-wire  JumpD2;
-wire  BranchD2;
-wire        EcallD2;
+reg [63:0] RD1D2;
+reg [63:0] RD2D2;
+reg        RegWriteD2;
+reg [1:0]  ResultSrcD2;
+reg [4:0]  MemWriteReadSizeD2;
+reg [5:0]  ALUControlD2;
+reg        ALUSrcD2;
+reg [63:0] ImmExtD2;
+reg [4:0]  Rs1D2;
+reg [4:0]  Rs2D2;
+reg [4:0]  RdD2;
+reg  JumpD2;
+reg  BranchD2;
+reg        EcallD2;
 rd_wb RD_WB(
   //****** RD ******
   //--- enable ---
@@ -763,8 +758,6 @@ rd_wb RD_WB(
   .enableW(enableW),
   .m_axi_acready(m_axi_acready),
   .num_clk(num_clk),
-  .num_branch(num_branch),
-  .num_noPrediction(num_noPrediction),
   // Superscalar 1
   .RdW1(RdW1),
   .RegWriteW1(RegWriteW1),
@@ -778,52 +771,52 @@ rd_wb RD_WB(
 );
 
 //@@@ pipe_RD_ALU && pipe_WB_end @@@
-wire finishE;
+reg finishE;
 //--- hazard ---
-wire StallE;
-wire FlushE;
+reg StallE;
+reg FlushE;
 //--- enable ---
-wire enableE;
+reg enableE;
 // Superscalar 1
 //--- pipe ---
-wire [4:0]  RdE1;
-wire [63:0] PCE1;
-wire [63:0] PCPlus4E1;
+reg [4:0]  RdE1;
+reg [63:0] PCE1;
+reg [63:0] PCPlus4E1;
 //--- register_file ---
-wire [63:0] RD1E1;
-wire [63:0] RD2E1;
+reg [63:0] RD1E1;
+reg [63:0] RD2E1;
 //--- control_unit ---
-wire        RegWriteE1;
-wire [1:0]  ResultSrcE1;
-wire [4:0]  MemWriteReadSizeE1;
-wire [5:0]  ALUControlE1;
-wire        ALUSrcE1;
-wire [63:0] ImmExtE1;
-wire [4:0]  Rs1E1;
-wire [4:0]  Rs2E1;
-wire JumpE1;
-wire BranchE1;
-wire        EcallE1;
+reg        RegWriteE1;
+reg [1:0]  ResultSrcE1;
+reg [4:0]  MemWriteReadSizeE1;
+reg [5:0]  ALUControlE1;
+reg        ALUSrcE1;
+reg [63:0] ImmExtE1;
+reg [4:0]  Rs1E1;
+reg [4:0]  Rs2E1;
+reg JumpE1;
+reg BranchE1;
+reg        EcallE1;
 // Superscalar 2
 //--- pipe ---
-wire [4:0]  RdE2;
-wire [63:0] PCE2;
-wire [63:0] PCPlus4E2;
+reg [4:0]  RdE2;
+reg [63:0] PCE2;
+reg [63:0] PCPlus4E2;
 //--- register_file ---
-wire [63:0] RD1E2;
-wire [63:0] RD2E2;
+reg [63:0] RD1E2;
+reg [63:0] RD2E2;
 //--- control_unit ---
-wire        RegWriteE2;
-wire [1:0]  ResultSrcE2;
-wire [4:0]  MemWriteReadSizeE2;
-wire [5:0]  ALUControlE2;
-wire        ALUSrcE2;
-wire [63:0] ImmExtE2;
-wire [4:0]  Rs1E2;
-wire [4:0]  Rs2E2;
-wire JumpE2;
-wire BranchE2;
-wire        EcallE2;
+reg        RegWriteE2;
+reg [1:0]  ResultSrcE2;
+reg [4:0]  MemWriteReadSizeE2;
+reg [5:0]  ALUControlE2;
+reg        ALUSrcE2;
+reg [63:0] ImmExtE2;
+reg [4:0]  Rs1E2;
+reg [4:0]  Rs2E2;
+reg JumpE2;
+reg BranchE2;
+reg        EcallE2;
 always_ff @ (posedge clk) begin
   //--- pipe_RD_ALU ---
   if(!StallE) enableE <= enableD;
@@ -911,7 +904,6 @@ always_ff @ (posedge clk) begin
       RdE2 <= RdD2;
       PCE2 <= PCD2;
       PCPlus4E2 <= PCPlus4D2;
-      if(JumpD1|JumpD2|BranchD1|BranchD2) num_branch <= num_branch + 1;
     end
   end
 
@@ -926,17 +918,17 @@ end
 
 //****** ALU ******
 // Superscalar 1
-wire [2:0]  FrowardAE1;
-wire [2:0]  FrowardBE1;
-wire [63:0] ALUResultE1;
-wire [63:0] WriteDataE1;
-wire [63:0] ALUResultM1;
+reg [2:0]  FrowardAE1;
+reg [2:0]  FrowardBE1;
+reg [63:0] ALUResultE1;
+reg [63:0] WriteDataE1;
+reg [63:0] ALUResultM1;
 // Superscalar 2
-wire [2:0]  FrowardAE2;
-wire [2:0]  FrowardBE2;
-wire [63:0] ALUResultE2;
-wire [63:0] WriteDataE2;
-wire [63:0] ALUResultM2;
+reg [2:0]  FrowardAE2;
+reg [2:0]  FrowardBE2;
+reg [63:0] ALUResultE2;
+reg [63:0] WriteDataE2;
+reg [63:0] ALUResultM2;
 alu #(.B_N(B_N),
       .B_H(B_H)
 )ALU(
@@ -985,27 +977,27 @@ alu #(.B_N(B_N),
 );
 
 //@@@ pipe_ALU_MEM @@@
-wire finishM;
+reg finishM;
 //--- hazard ---
-wire StallM;
+reg StallM;
 //--- enable ---
-wire enableM;
+reg enableM;
 // Superscalar 1
-wire        RegWriteM1;
-wire [1:0]  ResultSrcM1;
-wire [4:0]  MemWriteReadSizeM1;
-wire [63:0] WriteDataM1;
-wire [4:0]  RdM1;
-wire [63:0] PCPlus4M1;
-wire        EcallM1;
+reg        RegWriteM1;
+reg [1:0]  ResultSrcM1;
+reg [4:0]  MemWriteReadSizeM1;
+reg [63:0] WriteDataM1;
+reg [4:0]  RdM1;
+reg [63:0] PCPlus4M1;
+reg        EcallM1;
 // Superscalar 2
-wire        RegWriteM2;
-wire [1:0]  ResultSrcM2;
-wire [4:0]  MemWriteReadSizeM2;
-wire [63:0] WriteDataM2;
-wire [4:0]  RdM2;
-wire [63:0] PCPlus4M2;
-wire        EcallM2;
+reg        RegWriteM2;
+reg [1:0]  ResultSrcM2;
+reg [4:0]  MemWriteReadSizeM2;
+reg [63:0] WriteDataM2;
+reg [4:0]  RdM2;
+reg [63:0] PCPlus4M2;
+reg        EcallM2;
 always_ff @ (posedge clk) begin
   if(!StallM) enableM <= enableE;
   if(enableE) begin
@@ -1036,12 +1028,12 @@ always_ff @ (posedge clk) begin
 end
 
 //****** MEM ******
-wire        Stall_miss1;
-wire        Stall_miss2;
+reg        Stall_miss1;
+reg        Stall_miss2;
 // Superscalar 1
-wire [63:0] ReadDataM1;
+reg [63:0] ReadDataM1;
 // Superscalar 2
-wire [63:0] ReadDataM2;
+reg [63:0] ReadDataM2;
 mem #(.N(N),
       .B(B),
       .S(S),
@@ -1080,21 +1072,21 @@ mem #(.N(N),
 );
 
 //@@@ pipe_MEM_WB @@@
-wire finishW;
+reg finishW;
 //--- hazard ---
-wire StallW;
+reg StallW;
 //--- enable ---
-wire enableW;
+reg enableW;
 // Superscalar 1
-wire        RegWriteW1;
-wire [4:0]  RdW1;
-wire [63:0] ResultW1;
-wire        EcallW1;
+reg        RegWriteW1;
+reg [4:0]  RdW1;
+reg [63:0] ResultW1;
+reg        EcallW1;
 // Superscalar 2
-wire        RegWriteW2;
-wire [4:0]  RdW2;
-wire [63:0] ResultW2;
-wire        EcallW2;
+reg        RegWriteW2;
+reg [4:0]  RdW2;
+reg [63:0] ResultW2;
+reg        EcallW2;
 always_ff @ (posedge clk) begin
   if(!StallW) enableW <= enableM;
   if(enableM) begin
