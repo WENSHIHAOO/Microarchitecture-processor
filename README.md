@@ -5,52 +5,52 @@ Hardware design process: Conceptual Design --> Behavioral Implementation --> Eva
 
 Due to cost and time reasons, this project can only be completed: Conceptual Design --> Behavioral Implementation --> Evaluation
 
---------------------------------------------------------------------------
-Some instructions for the project
+## Instructions for the project
 
-1. Building/Running your simulator code
+1. **Building/Running your simulator code**
+    ```bash
+    make // build code
+    make run // run code
+    ```
 
-i.  make // build code
-ii. make run // run code
+2. **Change the test case**
+    - Find other test cases in `/test` file.
+    - Change `PROG=/test/...` in `Makefile`.
 
-2. Change the test case
+3. **Generate 'trace.vcd' waveform file**
+    - Delete `//NO TRACE` in `main.cpp`.
+    - Restore `VM_TRACE` in `main.cpp`.
 
-i.  Find other test cases in /test file
-ii. Change PROG=/test/... in Makefile
+## Performance Results
 
-3. If you want to generate 'trace.vcd' waveform file, You can view it using 'gtkwave'
+**1. 5+ stage, Set-Associative & Victim Caches**
 
-i.  Delete //NO TRACE in main.cpp.
-ii. Restore VM_TRACE in main.cpp.
+        Number of clk
+    prog1: 54,882
+    prog2: 42,492
+    prog3: 1,196,214
+    prog4: 33,612,114
 
---------------------------------------------------------------------------
-Here are the performance results (expressed in clock cycles (clk)) of running the test cases at different stages of the project:
+**2. Super-Scalar, Set-Associative & Victim Caches**
 
-1. 5+ stage, Set-Associative & Victim Caches
-    Number of clk
-prog1: 54882
-prog2: 42492
-prog3: 1196214
-prog4: 33612114
+        Number of clk | Increase Rate
+    prog1: 53,081     | 3.3%
+    prog2: 41,477     | 2.4%
+    prog3: 999,929    | 16.4%
+    prog4: 23,827,055 | 29.1%
 
-2. Super-Scalar, Set-Associative & Victim Caches
-    Number of clk |  Increase Rate
-prog1: 53081      |  3.3%
-prog2: 41477      |  2.4%
-prog3: 999929     |  16.4%
-prog4: 23827055   |  29.1%
+**3. Branch predictor, Super-Scalar, Set-Associative & Victim Caches**
 
-3. Branch predictor, Super-Scalar, Set-Associative & Victim Caches
-    Number of clk |  Increase Rate
-prog1: 52601      |  0.9%
-prog2: 41111      |  0.9%
-prog3: 712499     |  28.7%
-prog4: 19744985   |  17.1%
+        Number of clk | Increase Rate
+    prog1: 52,601     | 0.9%
+    prog2: 41,111     | 0.9%
+    prog3: 712,499    | 28.7%
+    prog4: 19,744,985 | 17.1%
 
-    Number of Branches  |  Number of Mispredictions |  Prediction Rate
-prog1: 1450             |  593                      |  59.1%
-prog2: 976              |  392                      |  59.8%
-prog3: 223618           |  6086                     |  97.3%
-prog4: 4879941          |  782347                   |  84%
+        #Branches    | #Mispredictions | Prediction Rate
+    prog1: 1,450     | 593             | 59.1%
+    prog2: 976       | 392             | 59.8%
+    prog3: 223,618   | 6,086           | 97.3%
+    prog4: 4,879,941 | 782,347         | 84%
 
-In fact, the processor's computing speed has increased a lot. But it takes 100 clock cycles to access the memory, which greatly reduces the effective performance improvement, making the actual performance improvement particularly low.
+Although the processor's computational speed has significantly improved, the need for 100 clock cycles for memory access considerably diminishes the overall performance gains, resulting in a relatively modest improvement in effective performance.
