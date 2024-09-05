@@ -3,7 +3,7 @@
 PROG=/home/student/cse502/test/tests/project/prog1
 #PROG=/shared/cse502/tests/bbl.bin
 
-TRACE?=--trace
+TRACE?=#--trace
 HAVETLB=n
 FULLSYSTEM=n
 

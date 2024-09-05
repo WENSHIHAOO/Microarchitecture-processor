@@ -3,11 +3,9 @@
 #include "Vtop.h"
 #include "verilated.h"
 #include "system.h"
-/*
 #if VM_TRACE
 # include <verilated_vcd_c.h>	// Trace file format header
 #endif
-*/
 
 #define RAM_SIZE                  (1*GIGA)
 #define INIT_STACK_OFFSET         (4*MEGA)
@@ -49,7 +47,6 @@ int main(int argc, char* argv[]) {
     std::cerr << "==========================================" << std::endl;
   }
 
-/*
 #if VM_TRACE
 	// If verilator was invoked with --trace
 	VerilatedVcdC* tfp = NULL;
@@ -66,8 +63,6 @@ int main(int argc, char* argv[]) {
 #else
 #define TFP_DUMP
 #endif
-*/
-#define TFP_DUMP // NO TRACE
 
 #define TICK() do {                    \
 		top.clk = !top.clk;                \
@@ -97,12 +92,10 @@ int main(int argc, char* argv[]) {
 
 	top.final();
 
-/*
 #if VM_TRACE
 	if (tfp) tfp->close();
 	delete tfp;
 #endif
-*/
 
 	return 0;
 }
