@@ -23,46 +23,47 @@ module top
   input  [63:0] satp,
 
   // interface to connect to the bus
-  output  reg [ID_WIDTH-1:0]    m_axi_awid,
-  output  reg [ADDR_WIDTH-1:0]  m_axi_awaddr, // Write address. The write address gives the address of the first transfer in a write burst transaction.
-  output  reg [7:0]             m_axi_awlen,  // Burst length. The burst length gives the exact number of transfers in a burst. This information determines the number of data transfers associated with the address.Burst_Length = AWLEN[7:0] + 1
-  output  reg [2:0]             m_axi_awsize, // Burst size. This signal indicates the size of each transfer in the burst.Burst_Size = 2^AWSIZE[2:0]
-  output  reg [1:0]             m_axi_awburst,// Burst type. The burst type and the size information, determine how the address for each transfer within the burst is calculated.Burst_Type: "00" = FIXED; "01" = INCR; "10" = WRAP
-  output  reg                   m_axi_awlock, // Lock type. Provides additional information about the atomic characteristics of the transfer.Atomic_Access: '0' Normal; '1' Exclusive
-  output  reg [3:0]             m_axi_awcache,// Memory type. This signal indicates how transactions are required to progress through a system.Memory_Attributes:□	AWCACHE[0] Bufferable□	AWCACHE[1] Cacheable□	AWCACHE[2] Read-allocate□	AWCACHE[3] Write-allocate
-  output  reg [2:0]             m_axi_awprot, // Protection type. This signal indicates the privilege and security level of the transaction, and whether the transaction is a data access or an instruction access.Access_Permissions:□	AWPROT[0] Privileged□	AWPROT[1] Non-secure□	AWPROT[2] Instruction
-  output  reg                   m_axi_awvalid,// Write address valid. This signal indicates that the channel is signaling valid write address and control information.
-  input   reg                   m_axi_awready,// Write address ready. This signal indicates that the slave is ready to accept an address and associated control signals.
-  output  reg [DATA_WIDTH-1:0]  m_axi_wdata,  // Write data.
-  output  reg [STRB_WIDTH-1:0]  m_axi_wstrb,  // Write strobes. This signal indicates which byte lanes hold valid data. There is one write strobe bit for each eight bits of the write data bus.
-  output  reg                   m_axi_wlast,  // Write last. This signal indicates the last transfer in a write burst.
-  output  reg                   m_axi_wvalid, // Write valid. This signal indicates that valid write data and strobes are available.
-  input   reg                   m_axi_wready, // Write ready. This signal indicates that the slave can accept the write data.
-  input   reg [ID_WIDTH-1:0]    m_axi_bid,
-  input   reg [1:0]             m_axi_bresp,  // Write response. This signal indicates the status of the write transaction.Response:□	"00" = OKAY□	"01" = EXOKAY□	"10" = SLVERR□	"11" = DECERR
-  input   reg                   m_axi_bvalid, // Write response valid. This signal indicates that the channel is signaling a valid write response.
-  output  reg                   m_axi_bready, // Response ready. This signal indicates that the master can accept a write response.
-  output  reg [ID_WIDTH-1:0]    m_axi_arid,
-  output  reg [ADDR_WIDTH-1:0]  m_axi_araddr, // Read address. The read address gives the address of the first transfer in a read burst transaction.
-  output  reg [7:0]             m_axi_arlen,  // Burst length. The burst length gives the exact number of transfers in a burst. This information determines the number of data transfers associated with the address.Burst_Length = ARLEN[7:0] + 1
-  output  reg [2:0]             m_axi_arsize, // Burst size. This signal indicates the size of each transfer in the burst.Burst_Size = 2^ARSIZE[2:0]
-  output  reg [1:0]             m_axi_arburst,// Burst type. The burst type and the size information, determine how the address for each transfer within the burst is calculated.Burst_Type: "00" = FIXED; "01" = INCR; "10" = WRAP
-  output  reg                   m_axi_arlock, // Lock type. Provides additional information about the atomic characteristics of the transfer.Atomic_Access: '0' Normal; '1' Exclusive
-  output  reg [3:0]             m_axi_arcache,// Memory type. This signal indicates how transactions are required to progress through a system.Memory_Attributes:□	ARCACHE[0] Bufferable□	ARCACHE[1] Cacheable□	ARCACHE[2] Read-allocate□	ARCACHE[3] Write-allocate
-  output  reg [2:0]             m_axi_arprot, // Protection type. This signal indicates the privilege and security level of the transaction, and whether the transaction is a data access or an instruction access.Access_Permissions:□	ARPROT[0] Privileged□	ARPROT[1] Non-secure□	ARPROT[2] Instruction
-  output  reg                   m_axi_arvalid,// Read address valid. This signal indicates that the channel is signaling valid read address and control information.
-  input   reg                   m_axi_arready,// Read address ready. This signal indicates that the slave is ready to accept an address and associated control signals.
-  input   reg [ID_WIDTH-1:0]    m_axi_rid,
-  input   reg [DATA_WIDTH-1:0]  m_axi_rdata,  // Read data.
-  input   reg [1:0]             m_axi_rresp,  // Read response. This signal indicates the status of the read transfer.Response: "00" = OKAY; "01" = EXOKAY; "10" = SLVERR; “11” = DECERR
-  input   reg                   m_axi_rlast,  // Read last. This signal indicates the last transfer in a read burst.
-  input   reg                   m_axi_rvalid, // Read valid. This signal indicates that the channel is signaling the required read data.
-  output  reg                   m_axi_rready, // Read ready. This signal indicates that the master can accept the read data and response information.
-  input   reg                   m_axi_acvalid,
-  output  reg                   m_axi_acready,
-  input   reg [ADDR_WIDTH-1:0]  m_axi_acaddr,
-  input   reg [3:0]             m_axi_acsnoop
+  output  wire [ID_WIDTH-1:0]    m_axi_awid,
+  output  wire [ADDR_WIDTH-1:0]  m_axi_awaddr, // Write address. The write address gives the address of the first transfer in a write burst transaction.
+  output  wire [7:0]             m_axi_awlen,  // Burst length. The burst length gives the exact number of transfers in a burst. This information determines the number of data transfers associated with the address.Burst_Length = AWLEN[7:0] + 1
+  output  wire [2:0]             m_axi_awsize, // Burst size. This signal indicates the size of each transfer in the burst.Burst_Size = 2^AWSIZE[2:0]
+  output  wire [1:0]             m_axi_awburst,// Burst type. The burst type and the size information, determine how the address for each transfer within the burst is calculated.Burst_Type: "00" = FIXED; "01" = INCR; "10" = WRAP
+  output  wire                   m_axi_awlock, // Lock type. Provides additional information about the atomic characteristics of the transfer.Atomic_Access: '0' Normal; '1' Exclusive
+  output  wire [3:0]             m_axi_awcache,// Memory type. This signal indicates how transactions are required to progress through a system.Memory_Attributes:□	AWCACHE[0] Bufferable□	AWCACHE[1] Cacheable□	AWCACHE[2] Read-allocate□	AWCACHE[3] Write-allocate
+  output  wire [2:0]             m_axi_awprot, // Protection type. This signal indicates the privilege and security level of the transaction, and whether the transaction is a data access or an instruction access.Access_Permissions:□	AWPROT[0] Privileged□	AWPROT[1] Non-secure□	AWPROT[2] Instruction
+  output  wire                   m_axi_awvalid,// Write address valid. This signal indicates that the channel is signaling valid write address and control information.
+  input   wire                   m_axi_awready,// Write address ready. This signal indicates that the slave is ready to accept an address and associated control signals.
+  output  wire [DATA_WIDTH-1:0]  m_axi_wdata,  // Write data.
+  output  wire [STRB_WIDTH-1:0]  m_axi_wstrb,  // Write strobes. This signal indicates which byte lanes hold valid data. There is one write strobe bit for each eight bits of the write data bus.
+  output  wire                   m_axi_wlast,  // Write last. This signal indicates the last transfer in a write burst.
+  output  wire                   m_axi_wvalid, // Write valid. This signal indicates that valid write data and strobes are available.
+  input   wire                   m_axi_wready, // Write ready. This signal indicates that the slave can accept the write data.
+  input   wire [ID_WIDTH-1:0]    m_axi_bid,
+  input   wire [1:0]             m_axi_bresp,  // Write response. This signal indicates the status of the write transaction.Response:□	"00" = OKAY□	"01" = EXOKAY□	"10" = SLVERR□	"11" = DECERR
+  input   wire                   m_axi_bvalid, // Write response valid. This signal indicates that the channel is signaling a valid write response.
+  output  wire                   m_axi_bready, // Response ready. This signal indicates that the master can accept a write response.
+  output  wire [ID_WIDTH-1:0]    m_axi_arid,
+  output  wire [ADDR_WIDTH-1:0]  m_axi_araddr, // Read address. The read address gives the address of the first transfer in a read burst transaction.
+  output  wire [7:0]             m_axi_arlen,  // Burst length. The burst length gives the exact number of transfers in a burst. This information determines the number of data transfers associated with the address.Burst_Length = ARLEN[7:0] + 1
+  output  wire [2:0]             m_axi_arsize, // Burst size. This signal indicates the size of each transfer in the burst.Burst_Size = 2^ARSIZE[2:0]
+  output  wire [1:0]             m_axi_arburst,// Burst type. The burst type and the size information, determine how the address for each transfer within the burst is calculated.Burst_Type: "00" = FIXED; "01" = INCR; "10" = WRAP
+  output  wire                   m_axi_arlock, // Lock type. Provides additional information about the atomic characteristics of the transfer.Atomic_Access: '0' Normal; '1' Exclusive
+  output  wire [3:0]             m_axi_arcache,// Memory type. This signal indicates how transactions are required to progress through a system.Memory_Attributes:□	ARCACHE[0] Bufferable□	ARCACHE[1] Cacheable□	ARCACHE[2] Read-allocate□	ARCACHE[3] Write-allocate
+  output  wire [2:0]             m_axi_arprot, // Protection type. This signal indicates the privilege and security level of the transaction, and whether the transaction is a data access or an instruction access.Access_Permissions:□	ARPROT[0] Privileged□	ARPROT[1] Non-secure□	ARPROT[2] Instruction
+  output  wire                   m_axi_arvalid,// Read address valid. This signal indicates that the channel is signaling valid read address and control information.
+  input   wire                   m_axi_arready,// Read address ready. This signal indicates that the slave is ready to accept an address and associated control signals.
+  input   wire [ID_WIDTH-1:0]    m_axi_rid,
+  input   wire [DATA_WIDTH-1:0]  m_axi_rdata,  // Read data.
+  input   wire [1:0]             m_axi_rresp,  // Read response. This signal indicates the status of the read transfer.Response: "00" = OKAY; "01" = EXOKAY; "10" = SLVERR; “11” = DECERR
+  input   wire                   m_axi_rlast,  // Read last. This signal indicates the last transfer in a read burst.
+  input   wire                   m_axi_rvalid, // Read valid. This signal indicates that the channel is signaling the required read data.
+  output  wire                   m_axi_rready, // Read ready. This signal indicates that the master can accept the read data and response information.
+  input   wire                   m_axi_acvalid,
+  output  wire                   m_axi_acready,
+  input   wire [ADDR_WIDTH-1:0]  m_axi_acaddr,
+  input   wire [3:0]             m_axi_acsnoop
 );
+logic TLB = 0;
 // 2 Way Set Associative Cache Constants
 localparam C = 32 * 1024;                // Cache size (bytes), not including overhead such as the valid, tag, LRU, and dirty bits
 localparam N = 2;                        // Number of ways per set
@@ -76,43 +77,179 @@ localparam t = ADDR_WIDTH - (s + b + y); // Number of tag bits
 localparam V_N = 16;                     // Number of ways of Victim
 // Fully Associative Branch Target Buffer (BTB) Constants
 localparam B_N = 64;                     // Number of ways of BTB
-localparam B_H = 2;                      // Number of history bits
+localparam b_h = 2;                      // Number of history bits
+// Fully Associative Translation Lookaside Buffer (TLB) Constants
+localparam E_N = 128;                    // Number of Page Table Entry
+localparam T_N = 512;                    // Number of ways of TLB
+localparam t_n = 9;  //log2(T_N)         // Number of way index bits
+localparam p_p = 22;                     // Physical Page Number bits
+localparam v_p = 24;                     // Virtual Page Number bits
+localparam p_o = 12;                     // Page Offest bits
+localparam PAGE_SIZE = 4096;
+localparam STACK_PAGES = 100;
+localparam MEGA = 512;
 
+//--- PTE ---
+reg [63:0] TLB_PTE_stackptr; // Page Table stackptr Entry,  = virt_3fc00000
+reg [63:0] TLB_PTE_Entry_entry; // Page Table entry Entry
+reg [v_p-1:0] TLB_PTE_Entry [E_N]; // Page Table Entry,  = virt_0 + 20000 * E_N
+reg         TLB_PTE_Valid [E_N];
+//--- AXI PTE ---
+logic TLB_PTE_step;
+logic TLB_PTE_AXI;
+logic [2:0] TLB_8;
+logic [v_p-1:0] TLB_PTE_virt;
+always_ff @ (posedge clk) begin
+  if(TLB_PTE_step==0 & TLB_PTE_AXI & !reset & m_axi_arready) begin
+    m_axi_araddr = TLB_PTE_Entry_entry + TLB_PTE_virt*8;
+    m_axi_araddr = m_axi_araddr[63:b+y] << (b+y);
+    TLB_PTE_virt = TLB_PTE_virt[v_p-1:b] << b;
+    m_axi_arvalid <= 1;
+    m_axi_rready <= 1;
+    TLB_PTE_step = 1;
+  end else if(TLB_PTE_step == 1) begin
+    m_axi_arvalid <= 0;
+    if(m_axi_rvalid) begin
+      if(m_axi_rdata!=0) begin
+        TLB_PTE_Entry[TLB_PTE_virt+TLB_8] = m_axi_rdata >> 10;
+        TLB_PTE_Valid[TLB_PTE_virt+TLB_8] = 1;
+      end
+      TLB_8 <= TLB_8 + 1;
+      if (m_axi_rlast) begin
+        m_axi_rready <= 0;
+        TLB_8 <= 0;
+        TLB_PTE_step = 0;
+        TLB_PTE_AXI = 0;
+      end
+    end
+  end
+end
+
+//--- TLB ---
+reg       TLB_Valid [T_N];
+reg [v_p-1:0] TLB_VPN [T_N];
+reg [p_p-1:0] TLB_PPN [T_N];
+reg [t_n-1:0] TLB_LRU;
+//--- AXI TLB ---
+logic TLB_begin;
+logic TLB_AXI;
+logic TLB_step;
+logic [v_p-1:0] TLB_virt;
+logic [t_n-1:0] TLB_index;
+always_ff @ (posedge clk) begin
+  if(TLB_step==0 & TLB_AXI & !TLB_PTE_AXI & !reset & m_axi_arready) begin
+    if(TLB_index == T_N-1) TLB_index = (TLB_LRU[t_n-1:b]<<b)+B;
+    if(TLB_begin) begin
+      m_axi_araddr = TLB_PTE_Entry_entry;
+      TLB_virt = TLB_virt[v_p-1:b] << b;
+      m_axi_arvalid <= 1;
+      m_axi_rready <= 1;
+      TLB_step = 1;
+    end else if(TLB_virt > stackptr[63:p_o]-STACK_PAGES) begin
+      m_axi_araddr = TLB_PTE_stackptr - (stackptr[63:p_o] - TLB_virt)*8;
+      m_axi_araddr = m_axi_araddr[63:b+y] << (b+y);
+      TLB_virt = TLB_virt[v_p-1:b] << b;
+      m_axi_arvalid <= 1;
+      m_axi_rready <= 1;
+      TLB_step = 1;
+    end else if(TLB_PTE_Valid[TLB_virt[v_p-1:9]]) begin
+      m_axi_araddr = (TLB_PTE_Entry[TLB_virt[v_p-1:9]] << p_o) + (TLB_virt - MEGA*TLB_virt[v_p-1:9])*8;
+      m_axi_araddr = m_axi_araddr[63:b+y] << (b+y);
+      TLB_virt = TLB_virt[v_p-1:b] << b;
+      m_axi_arvalid <= 1;
+      m_axi_rready <= 1;
+      TLB_step = 1;
+    end else begin
+      TLB_PTE_virt = TLB_virt[v_p-1:9];
+      TLB_PTE_AXI = 1;
+    end
+  end else if(TLB_step == 1) begin
+    m_axi_arvalid <= 0;
+    if(m_axi_rvalid) begin
+      if(m_axi_rdata!=0) begin
+        TLB_PPN[TLB_index] = m_axi_rdata >> 10;
+        TLB_VPN[TLB_index] = TLB_virt + TLB_8;
+        if(!TLB_begin) TLB_Valid[TLB_index] = 1;
+        TLB_index = TLB_index + 1;
+      end
+      TLB_8 <= TLB_8 + 1;
+      if (m_axi_rlast) begin
+        m_axi_rready <= 0;
+        TLB_8 <= 0;
+        TLB_step = 0;
+        TLB_AXI = 0;
+      end
+    end
+  end
+end
+
+logic [p_p-1:0] TLB_phy;
+logic [63:0] phyacaddr;
+logic acfind;
 //--- AXI Snoop Data ---
 always_ff @ (posedge clk) begin
   if(m_axi_acready) begin
     if(m_axi_acvalid && (m_axi_acsnoop == 4'hd)) begin
-      if(IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t] & (IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t-1:0] == m_axi_acaddr[63 : s+b+y])) begin
-        IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t] <= 0;
-      end else if(IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t] & (IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t-1:0] == m_axi_acaddr[63 : s+b+y])) begin
-        IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t] <= 0;
-      end
-      if(MEM.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t] & (MEM.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t-1:0] == m_axi_acaddr[63 : s+b+y])) begin
-        MEM.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t] <= 0;
-        MEM.Dirty[m_axi_acaddr[s+b+y-1 : b+y]][0] <= 0;
-      end else if(MEM.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t] & (MEM.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t-1:0] == m_axi_acaddr[63 : s+b+y])) begin
-        MEM.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t] <= 0;
-        MEM.Dirty[m_axi_acaddr[s+b+y-1 : b+y]][1] <= 0;
+      if(TLB) begin
+        acfind = 1;
+        TLB_phy = m_axi_acaddr[63:p_o];
+        for(int i=0; i<T_N; i++) begin
+          if(TLB_Valid[i]) begin
+            if(TLB_phy == TLB_PPN[i]) begin
+              phyacaddr = (TLB_VPN[i] << p_o) + m_axi_acaddr[p_o-1:0]; //phy_to_virt
+              break;
+            end
+          end else begin
+            acfind = 0;
+            break;
+          end
+        end
+        if(acfind) begin
+          if(IF.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][0][t] & (IF.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][0][t-1:0] == phyacaddr[63 : s+b+y])) begin
+            IF.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][0][t] <= 0;
+          end else if(IF.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][1][t] & (IF.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][1][t-1:0] == phyacaddr[63 : s+b+y])) begin
+            IF.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][1][t] <= 0;
+          end
+          if(MEM.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][0][t] & (MEM.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][0][t-1:0] == phyacaddr[63 : s+b+y])) begin
+            MEM.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][0][t] <= 0;
+            MEM.Dirty[phyacaddr[s+b+y-1 : b+y]][0] <= 0;
+          end else if(MEM.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][1][t] & (MEM.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][1][t-1:0] == phyacaddr[63 : s+b+y])) begin
+            MEM.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][1][t] <= 0;
+            MEM.Dirty[phyacaddr[s+b+y-1 : b+y]][1] <= 0;
+          end
+        end
+      end else begin
+        if(IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t] & (IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t-1:0] == m_axi_acaddr[63 : s+b+y])) begin
+          IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t] <= 0;
+        end else if(IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t] & (IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t-1:0] == m_axi_acaddr[63 : s+b+y])) begin
+          IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t] <= 0;
+        end
+        if(MEM.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t] & (MEM.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t-1:0] == m_axi_acaddr[63 : s+b+y])) begin
+          MEM.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t] <= 0;
+          MEM.Dirty[m_axi_acaddr[s+b+y-1 : b+y]][0] <= 0;
+        end else if(MEM.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t] & (MEM.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t-1:0] == m_axi_acaddr[63 : s+b+y])) begin
+          MEM.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t] <= 0;
+          MEM.Dirty[m_axi_acaddr[s+b+y-1 : b+y]][1] <= 0;
+        end
       end
     end else m_axi_acready = 0;
   end
 end
 
 //--- AXI Read Data ---
-reg  IF_miss;
-reg  MEM_miss1;
-reg  MEM_miss2;
-reg  [63:0]  IF_addr;
-reg  [63:0]  MEM_addr1;
-reg  [63:0]  MEM_addr2;
-reg  [63:0]  Hazard_addr1;
-reg  [63:0]  Hazard_addr2;
-reg          MEM_Write1;
-reg  [2:0]   MEM_Size1;
-reg  [63:0]  MEM_Data1;
-reg          MEM_Write2;
-reg  [2:0]   MEM_Size2;
-reg  [63:0]  MEM_Data2;
+logic [63:0] axi_i; // axi_i only use for AXI Read
+wire  IF_miss;
+wire  MEM_miss1;
+wire  MEM_miss2;
+wire  [63:0]  IF_addr;
+wire  [63:0]  MEM_addr1;
+wire  [63:0]  MEM_addr2;
+wire          MEM_Write1;
+wire  [2:0]   MEM_Size1;
+wire  [63:0]  MEM_Data1;
+wire          MEM_Write2;
+wire  [2:0]   MEM_Size2;
+wire  [63:0]  MEM_Data2;
 logic [1:0]   fetch_i_d;
 logic step;
 logic done_read;
@@ -124,53 +261,125 @@ logic [63:0]  write_addr;
 logic [63:0]  write_Data [B];
 logic [63:0]  temp_Data [B];
 logic [5:0]   index;
+logic [63:0]  axi_virt_araddr;
 always_ff @ (posedge clk) begin
   // Address Read
-  if(step==0 & !reset & m_axi_arready) begin
+  if(step==0 & write_step==0 & !TLB_AXI & !reset & m_axi_arready) begin
     if(MEM_miss1) begin
-      fetch_i_d = 1;
-      tag = MEM_addr1[63     :s+b+y];
-      set = MEM_addr1[s+b+y-1:b+y];
-      block_y = MEM_addr1[b+y-1:0];
-      m_axi_araddr = (MEM_addr1[63:b+y] << (b+y));
+      if(TLB) begin
+        TLB_AXI = 1;
+        TLB_index = -1;
+        TLB_virt = MEM_addr1[63:p_o];
+        for(axi_i=0; axi_i<T_N; axi_i++) begin
+            if(TLB_Valid[axi_i]) begin
+              if(TLB_virt == TLB_VPN[axi_i]) begin
+                m_axi_araddr = (TLB_PPN[axi_i] << p_o) + MEM_addr1[p_o-1:0]; //virt_to_phy
+                TLB_LRU = axi_i;
+                TLB_AXI = 0;
+                fetch_i_d = 1; //other
+                tag = MEM_addr1[63     :s+b+y];
+                set = MEM_addr1[s+b+y-1:b+y];
+                block_y = MEM_addr1[b+y-1:0];
+                m_axi_araddr = (m_axi_araddr[63:b+y] << (b+y));
+                break;
+              end
+            end else begin
+              TLB_index = axi_i;
+              break;
+            end
+        end
+      end else begin
+        fetch_i_d = 1;
+        tag = MEM_addr1[63     :s+b+y];
+        set = MEM_addr1[s+b+y-1:b+y];
+        block_y = MEM_addr1[b+y-1:0];
+        m_axi_araddr = (MEM_addr1[63:b+y] << (b+y));
+      end
     end else if(MEM_miss2) begin
-      fetch_i_d = 2;
-      tag = MEM_addr2[63     :s+b+y];
-      set = MEM_addr2[s+b+y-1:b+y];
-      block_y = MEM_addr2[b+y-1:0];
-      m_axi_araddr = (MEM_addr2[63:b+y] << (b+y));
+      if(TLB) begin
+        TLB_AXI = 1;
+        TLB_index = -1;
+        TLB_virt = MEM_addr2[63:p_o];
+        for(axi_i=0; axi_i<T_N; axi_i++) begin
+            if(TLB_Valid[axi_i]) begin
+              if(TLB_virt == TLB_VPN[axi_i]) begin
+                m_axi_araddr = (TLB_PPN[axi_i] << p_o) + MEM_addr2[p_o-1:0]; //virt_to_phy
+                TLB_LRU = axi_i;
+                TLB_AXI = 0;
+                fetch_i_d = 2; //other
+                tag = MEM_addr2[63     :s+b+y];
+                set = MEM_addr2[s+b+y-1:b+y];
+                block_y = MEM_addr2[b+y-1:0];
+                m_axi_araddr = (m_axi_araddr[63:b+y] << (b+y));
+                break;
+              end
+            end else begin
+              TLB_index = axi_i;
+              break;
+            end
+        end
+      end else begin
+        fetch_i_d = 2;
+        tag = MEM_addr2[63     :s+b+y];
+        set = MEM_addr2[s+b+y-1:b+y];
+        block_y = MEM_addr2[b+y-1:0];
+        m_axi_araddr = (MEM_addr2[63:b+y] << (b+y));
+      end
     end else if(IF_miss) begin
-      fetch_i_d = 3;
-      tag = IF_addr[63     :s+b+y];
-      set = IF_addr[s+b+y-1:b+y];
-      m_axi_araddr = (IF_addr[63:b+y] << (b+y));
+      if(TLB) begin
+        TLB_AXI = 1;
+        TLB_index = -1;
+        TLB_virt = IF_addr[63:p_o];
+        for(axi_i=0; axi_i<T_N; axi_i++) begin
+          if(TLB_Valid[axi_i]) begin
+            if(TLB_virt == TLB_VPN[axi_i]) begin
+              m_axi_araddr = (TLB_PPN[axi_i] << p_o) + IF_addr[p_o-1:0]; //virt_to_phy
+              TLB_LRU = axi_i;
+              TLB_AXI = 0;
+              fetch_i_d = 3; //other
+              tag = IF_addr[63     :s+b+y];
+              set = IF_addr[s+b+y-1:b+y];
+              m_axi_araddr = (m_axi_araddr[63:b+y] << (b+y));
+              break;
+            end
+          end else begin
+            TLB_index = axi_i;
+            break;
+          end
+        end
+      end else begin
+        fetch_i_d = 3;
+        tag = IF_addr[63     :s+b+y];
+        set = IF_addr[s+b+y-1:b+y];
+        m_axi_araddr = (IF_addr[63:b+y] << (b+y));
+      end
     end
     // Victim Cache
     if(fetch_i_d > 0) begin
       if(fetch_i_d == 3) begin
         // Check IF Victim Cache
-        for(int i=0; i<V_N; i++) begin
-          if(IF.Victim_Valid_Addr[i][64] & (IF.Victim_Valid_Addr[i][63:0]==IF_addr)) begin
+        for(axi_i=0; axi_i<V_N; axi_i++) begin
+          if(IF.Victim_Valid_Addr[axi_i][64] & (IF.Victim_Valid_Addr[axi_i][63:0]==IF_addr)) begin
             if(IF.Valid_Tag[set][IF.LRU[set]][t]) begin
-              temp_Data[0] = IF.Victim[i][0];
-              temp_Data[1] = IF.Victim[i][1];
-              temp_Data[2] = IF.Victim[i][2];
-              temp_Data[3] = IF.Victim[i][3];
-              temp_Data[4] = IF.Victim[i][4];
-              temp_Data[5] = IF.Victim[i][5];
-              temp_Data[6] = IF.Victim[i][6];
-              temp_Data[7] = IF.Victim[i][7];
+              temp_Data[0] = IF.Victim[axi_i][0];
+              temp_Data[1] = IF.Victim[axi_i][1];
+              temp_Data[2] = IF.Victim[axi_i][2];
+              temp_Data[3] = IF.Victim[axi_i][3];
+              temp_Data[4] = IF.Victim[axi_i][4];
+              temp_Data[5] = IF.Victim[axi_i][5];
+              temp_Data[6] = IF.Victim[axi_i][6];
+              temp_Data[7] = IF.Victim[axi_i][7];
 
-              IF.Victim[i][0] = IF.Data[set][IF.LRU[set]][0];
-              IF.Victim[i][1] = IF.Data[set][IF.LRU[set]][1];
-              IF.Victim[i][2] = IF.Data[set][IF.LRU[set]][2];
-              IF.Victim[i][3] = IF.Data[set][IF.LRU[set]][3];
-              IF.Victim[i][4] = IF.Data[set][IF.LRU[set]][4];
-              IF.Victim[i][5] = IF.Data[set][IF.LRU[set]][5];
-              IF.Victim[i][6] = IF.Data[set][IF.LRU[set]][6];
-              IF.Victim[i][7] = IF.Data[set][IF.LRU[set]][7];
-              IF.Victim_Valid_Addr[i][64] = 1;
-              IF.Victim_Valid_Addr[i][63:0] = {{IF.Valid_Tag[set][IF.LRU[set]][t-1:0],set} << (b+y)};
+              IF.Victim[axi_i][0] = IF.Data[set][IF.LRU[set]][0];
+              IF.Victim[axi_i][1] = IF.Data[set][IF.LRU[set]][1];
+              IF.Victim[axi_i][2] = IF.Data[set][IF.LRU[set]][2];
+              IF.Victim[axi_i][3] = IF.Data[set][IF.LRU[set]][3];
+              IF.Victim[axi_i][4] = IF.Data[set][IF.LRU[set]][4];
+              IF.Victim[axi_i][5] = IF.Data[set][IF.LRU[set]][5];
+              IF.Victim[axi_i][6] = IF.Data[set][IF.LRU[set]][6];
+              IF.Victim[axi_i][7] = IF.Data[set][IF.LRU[set]][7];
+              IF.Victim_Valid_Addr[axi_i][64] = 1;
+              IF.Victim_Valid_Addr[axi_i][63:0] = {{IF.Valid_Tag[set][IF.LRU[set]][t-1:0],set} << (b+y)};
 
               IF.Data[set][IF.LRU[set]][0] = temp_Data[0];
               IF.Data[set][IF.LRU[set]][1] = temp_Data[1];
@@ -181,15 +390,15 @@ always_ff @ (posedge clk) begin
               IF.Data[set][IF.LRU[set]][6] = temp_Data[6];
               IF.Data[set][IF.LRU[set]][7] = temp_Data[7];
             end else begin
-              IF.Victim_Valid_Addr[i][64] = 0;
-              IF.Data[set][IF.LRU[set]][0] = IF.Victim[i][0];
-              IF.Data[set][IF.LRU[set]][1] = IF.Victim[i][1];
-              IF.Data[set][IF.LRU[set]][2] = IF.Victim[i][2];
-              IF.Data[set][IF.LRU[set]][3] = IF.Victim[i][3];
-              IF.Data[set][IF.LRU[set]][4] = IF.Victim[i][4];
-              IF.Data[set][IF.LRU[set]][5] = IF.Victim[i][5];
-              IF.Data[set][IF.LRU[set]][6] = IF.Victim[i][6];
-              IF.Data[set][IF.LRU[set]][7] = IF.Victim[i][7];
+              IF.Victim_Valid_Addr[axi_i][64] = 0;
+              IF.Data[set][IF.LRU[set]][0] = IF.Victim[axi_i][0];
+              IF.Data[set][IF.LRU[set]][1] = IF.Victim[axi_i][1];
+              IF.Data[set][IF.LRU[set]][2] = IF.Victim[axi_i][2];
+              IF.Data[set][IF.LRU[set]][3] = IF.Victim[axi_i][3];
+              IF.Data[set][IF.LRU[set]][4] = IF.Victim[axi_i][4];
+              IF.Data[set][IF.LRU[set]][5] = IF.Victim[axi_i][5];
+              IF.Data[set][IF.LRU[set]][6] = IF.Victim[axi_i][6];
+              IF.Data[set][IF.LRU[set]][7] = IF.Victim[axi_i][7];
             end
             // Step Done Read
             done_read = 1;
@@ -198,8 +407,8 @@ always_ff @ (posedge clk) begin
         end
       end else begin
         // Check MEM Victim Cache
-        for(int i=0; i<V_N; i++) begin
-          if(MEM.Victim_Valid_Addr[i][64] & (MEM.Victim_Valid_Addr[i][63:0]=={{tag,set}<<(b+y)})) begin
+        for(axi_i=0; axi_i<V_N; axi_i++) begin
+          if(MEM.Victim_Valid_Addr[axi_i][64] & (MEM.Victim_Valid_Addr[axi_i][63:0]=={{tag,set}<<(b+y)})) begin
             if(MEM.Valid_Tag[set][MEM.LRU[set]][t]) begin
               temp_Data[0] = MEM.Data[set][MEM.LRU[set]][0];
               temp_Data[1] = MEM.Data[set][MEM.LRU[set]][1];
@@ -210,35 +419,35 @@ always_ff @ (posedge clk) begin
               temp_Data[6] = MEM.Data[set][MEM.LRU[set]][6];
               temp_Data[7] = MEM.Data[set][MEM.LRU[set]][7];
 
-              MEM.Data[set][MEM.LRU[set]][0] = MEM.Victim[i][0];
-              MEM.Data[set][MEM.LRU[set]][1] = MEM.Victim[i][1];
-              MEM.Data[set][MEM.LRU[set]][2] = MEM.Victim[i][2];
-              MEM.Data[set][MEM.LRU[set]][3] = MEM.Victim[i][3];
-              MEM.Data[set][MEM.LRU[set]][4] = MEM.Victim[i][4];
-              MEM.Data[set][MEM.LRU[set]][5] = MEM.Victim[i][5];
-              MEM.Data[set][MEM.LRU[set]][6] = MEM.Victim[i][6];
-              MEM.Data[set][MEM.LRU[set]][7] = MEM.Victim[i][7];
+              MEM.Data[set][MEM.LRU[set]][0] = MEM.Victim[axi_i][0];
+              MEM.Data[set][MEM.LRU[set]][1] = MEM.Victim[axi_i][1];
+              MEM.Data[set][MEM.LRU[set]][2] = MEM.Victim[axi_i][2];
+              MEM.Data[set][MEM.LRU[set]][3] = MEM.Victim[axi_i][3];
+              MEM.Data[set][MEM.LRU[set]][4] = MEM.Victim[axi_i][4];
+              MEM.Data[set][MEM.LRU[set]][5] = MEM.Victim[axi_i][5];
+              MEM.Data[set][MEM.LRU[set]][6] = MEM.Victim[axi_i][6];
+              MEM.Data[set][MEM.LRU[set]][7] = MEM.Victim[axi_i][7];
 
-              MEM.Victim[i][0] = temp_Data[0];
-              MEM.Victim[i][1] = temp_Data[1];
-              MEM.Victim[i][2] = temp_Data[2];
-              MEM.Victim[i][3] = temp_Data[3];
-              MEM.Victim[i][4] = temp_Data[4];
-              MEM.Victim[i][5] = temp_Data[5];
-              MEM.Victim[i][6] = temp_Data[6];
-              MEM.Victim[i][7] = temp_Data[7];
-              MEM.Victim_Valid_Addr[i][64] = 1;
-              MEM.Victim_Valid_Addr[i][63:0] = {{MEM.Valid_Tag[set][MEM.LRU[set]][t-1:0],set} << (b+y)};
+              MEM.Victim[axi_i][0] = temp_Data[0];
+              MEM.Victim[axi_i][1] = temp_Data[1];
+              MEM.Victim[axi_i][2] = temp_Data[2];
+              MEM.Victim[axi_i][3] = temp_Data[3];
+              MEM.Victim[axi_i][4] = temp_Data[4];
+              MEM.Victim[axi_i][5] = temp_Data[5];
+              MEM.Victim[axi_i][6] = temp_Data[6];
+              MEM.Victim[axi_i][7] = temp_Data[7];
+              MEM.Victim_Valid_Addr[axi_i][64] = 1;
+              MEM.Victim_Valid_Addr[axi_i][63:0] = {{MEM.Valid_Tag[set][MEM.LRU[set]][t-1:0],set} << (b+y)};
             end else begin
-              MEM.Data[set][MEM.LRU[set]][0] = MEM.Victim[i][0];
-              MEM.Data[set][MEM.LRU[set]][1] = MEM.Victim[i][1];
-              MEM.Data[set][MEM.LRU[set]][2] = MEM.Victim[i][2];
-              MEM.Data[set][MEM.LRU[set]][3] = MEM.Victim[i][3];
-              MEM.Data[set][MEM.LRU[set]][4] = MEM.Victim[i][4];
-              MEM.Data[set][MEM.LRU[set]][5] = MEM.Victim[i][5];
-              MEM.Data[set][MEM.LRU[set]][6] = MEM.Victim[i][6];
-              MEM.Data[set][MEM.LRU[set]][7] = MEM.Victim[i][7];
-              MEM.Victim_Valid_Addr[i][64] = 0;
+              MEM.Data[set][MEM.LRU[set]][0] = MEM.Victim[axi_i][0];
+              MEM.Data[set][MEM.LRU[set]][1] = MEM.Victim[axi_i][1];
+              MEM.Data[set][MEM.LRU[set]][2] = MEM.Victim[axi_i][2];
+              MEM.Data[set][MEM.LRU[set]][3] = MEM.Victim[axi_i][3];
+              MEM.Data[set][MEM.LRU[set]][4] = MEM.Victim[axi_i][4];
+              MEM.Data[set][MEM.LRU[set]][5] = MEM.Victim[axi_i][5];
+              MEM.Data[set][MEM.LRU[set]][6] = MEM.Victim[axi_i][6];
+              MEM.Data[set][MEM.LRU[set]][7] = MEM.Victim[axi_i][7];
+              MEM.Victim_Valid_Addr[axi_i][64] = 0;
             end
             // Step Done Read
             done_read = 1;
@@ -265,9 +474,9 @@ always_ff @ (posedge clk) begin
           if(IF.Valid_Tag[set][IF.LRU[set]][t]) begin
             // Check IF Victim index
             index = V_N;
-            for(int i=0; i<V_N; i++) begin
-              if(!IF.Victim_Valid_Addr[i][64]) begin
-                index = i;
+            for(axi_i=0; axi_i<V_N; axi_i++) begin
+              if(!IF.Victim_Valid_Addr[axi_i][64]) begin
+                index = axi_i;
                 break;
               end
             end
@@ -288,9 +497,9 @@ always_ff @ (posedge clk) begin
           if(MEM.Valid_Tag[set][MEM.LRU[set]][t]) begin
             // Check MEM Victim index
             index = V_N;
-            for(int i=0; i<V_N; i++) begin
-              if(!MEM.Victim_Valid_Addr[i][64]) begin
-                index = i;
+            for(axi_i=0; axi_i<V_N; axi_i++) begin
+              if(!MEM.Victim_Valid_Addr[axi_i][64]) begin
+                index = axi_i;
                 break;
               end
             end
@@ -373,25 +582,25 @@ always_ff @ (posedge clk) begin
               MEM.Dirty[set][MEM.LRU[set]] <= 1;
             end else MEM.Dirty[set][MEM.LRU[set]] <= 0;
             // Hazard: When both 1 and 2 miss and read the same address, cancel the other one.
-            if(MEM_miss2 & ((Hazard_addr2[63:b+y]<<(b+y))==m_axi_araddr)) begin
+            if(MEM_miss2 & ((MEM_addr2[63:b+y]<<(b+y))==(MEM_addr1[63:b+y]<<(b+y)))) begin
               if(MEM_Write2) begin // When 2 is a Write miss, write it in.
                 MEM_Write2 = 0;
                 case(MEM_Size2)
                   3'b000: begin
-                    MEM.Data[set][MEM.LRU[set]][Hazard_addr2[b+y-1:y]][8*Hazard_addr2[2:0]+:8]   = MEM_Data2; // sb
-                    do_pending_write(Hazard_addr2, MEM_Data2, 1);
+                    MEM.Data[set][MEM.LRU[set]][MEM_addr2[b+y-1:y]][8*MEM_addr2[2:0]+:8]   = MEM_Data2; // sb
+                    do_pending_write(MEM_addr2, MEM_Data2, 1);
                   end
                   3'b001: begin
-                    MEM.Data[set][MEM.LRU[set]][Hazard_addr2[b+y-1:y]][16*Hazard_addr2[2:1]+:16] = MEM_Data2; // sh
-                    do_pending_write({Hazard_addr2[63:1], 1'b0}, MEM_Data2, 2);
+                    MEM.Data[set][MEM.LRU[set]][MEM_addr2[b+y-1:y]][16*MEM_addr2[2:1]+:16] = MEM_Data2; // sh
+                    do_pending_write({MEM_addr2[63:1], 1'b0}, MEM_Data2, 2);
                   end
                   3'b010: begin
-                    MEM.Data[set][MEM.LRU[set]][Hazard_addr2[b+y-1:y]][32*Hazard_addr2[2]+:32]   = MEM_Data2; // sw
-                    do_pending_write({Hazard_addr2[63:2], 2'b00}, MEM_Data2, 4);
+                    MEM.Data[set][MEM.LRU[set]][MEM_addr2[b+y-1:y]][32*MEM_addr2[2]+:32]   = MEM_Data2; // sw
+                    do_pending_write({MEM_addr2[63:2], 2'b00}, MEM_Data2, 4);
                   end
                   3'b011: begin
-                    MEM.Data[set][MEM.LRU[set]][Hazard_addr2[b+y-1:y]]                           = MEM_Data2; // sd
-                    do_pending_write({Hazard_addr2[63:3], 3'b000}, MEM_Data2, 8);
+                    MEM.Data[set][MEM.LRU[set]][MEM_addr2[b+y-1:y]]                        = MEM_Data2; // sd
+                    do_pending_write({MEM_addr2[63:3], 3'b000}, MEM_Data2, 8);
                   end
                 endcase
                 MEM.Dirty[set][MEM.LRU[set]] <= 1;
@@ -423,33 +632,6 @@ always_ff @ (posedge clk) begin
               endcase
               MEM.Dirty[set][MEM.LRU[set]] <= 1;
             end else MEM.Dirty[set][MEM.LRU[set]] <= 0;
-            // Hazard: When both 1 and 2 miss and read the same address, cancel the other one.
-            if(MEM_miss1 & ((Hazard_addr1[63:b+y]<<(b+y))==m_axi_araddr)) begin
-              if(MEM_Write1) begin // When 1 is a Write miss, write it in.
-                MEM_Write1 = 0;
-                case(MEM_Size1)
-                  3'b000: begin
-                    MEM.Data[set][MEM.LRU[set]][Hazard_addr1[b+y-1:y]][8*Hazard_addr1[2:0]+:8]   = MEM_Data1; // sb
-                    do_pending_write(Hazard_addr1, MEM_Data1, 1);
-                  end
-                  3'b001: begin
-                    MEM.Data[set][MEM.LRU[set]][Hazard_addr1[b+y-1:y]][16*Hazard_addr1[2:1]+:16] = MEM_Data1; // sh
-                    do_pending_write({Hazard_addr1[63:1], 1'b0}, MEM_Data1, 2);
-                  end
-                  3'b010: begin
-                    MEM.Data[set][MEM.LRU[set]][Hazard_addr1[b+y-1:y]][32*Hazard_addr1[2]+:32]   = MEM_Data1; // sw
-                    do_pending_write({Hazard_addr1[63:2], 2'b00}, MEM_Data1, 4);
-                  end
-                  3'b011: begin
-                    MEM.Data[set][MEM.LRU[set]][Hazard_addr1[b+y-1:y]]                           = MEM_Data1; // sd
-                    do_pending_write({Hazard_addr1[63:3], 3'b000}, MEM_Data1, 8);
-                  end
-                endcase
-                MEM.Dirty[set][MEM.LRU[set]] <= 1;
-              end else MEM.Dirty[set][MEM.LRU[set]] <= 0;
-              MEM_miss1 = 0;
-              Stall_miss1 = 0;
-            end
           end
           MEM.Valid_Tag[set][MEM.LRU[set]][t] <= 1;
           MEM.Valid_Tag[set][MEM.LRU[set]][t-1:0] <= tag;
@@ -469,16 +651,38 @@ always_ff @ (posedge clk) begin
 end
 
 //--- AXI Write Data ---
-reg  [1:0]  write_step;
+wire  [1:0]  write_step;
 logic [2:0]  write_block_offset;
 always_ff @ (posedge clk) begin
   // Address Write
-  if(write_step == 1) begin
+  if(write_step==1 & !TLB_AXI) begin
     if(m_axi_awready) begin
-      m_axi_wlast <= 0;
-      m_axi_awaddr <= write_addr;
-      m_axi_awvalid <= 1;
-      write_step <= 2;
+      if(TLB) begin
+        TLB_AXI = 1;
+        TLB_index = -1;
+        TLB_virt = write_addr[63:p_o];
+        for(int i=0; i<T_N; i++) begin
+            if(TLB_Valid[i]) begin
+              if(TLB_virt == TLB_VPN[i]) begin
+                m_axi_awaddr = (TLB_PPN[i] << p_o) + write_addr[p_o-1:0]; //virt_to_phy
+                TLB_LRU = i;
+                TLB_AXI = 0;
+                m_axi_wlast <= 0; //other
+                m_axi_awvalid <= 1;
+                write_step <= 2;
+                break;
+              end
+            end else begin
+              TLB_index = i;
+              break;
+            end
+        end
+      end else begin
+        m_axi_awaddr <= write_addr;
+        m_axi_wlast <= 0;
+        m_axi_awvalid <= 1;
+        write_step <= 2;
+      end
     end
   end
   // Data Write
@@ -505,30 +709,37 @@ end
 //****** begin ******
 logic [1:0] B_pc;
 logic [6:0] B_index;
-reg [63:0] pc;
-reg        pc8;
+wire [63:0] pc;
+wire        pc8;
 // Superscalar 1
-reg [63:0] PCF1;
+wire [63:0] PCF1;
 // Superscalar 2
-reg [63:0] PCF2;
-reg        enable;
-reg        enableF;
+wire [63:0] PCF2;
+wire        enable;
+wire        enableF;
 // hazard
-reg  StallF;
+wire  StallF;
 // jump & branch
-reg        j_b;
-reg        PCSrcE1;
-reg        PCSrcE2;
-reg [63:0] PCTargetE;
+wire        j_b;
+wire        PCSrcE1;
+wire        PCSrcE2;
+wire [63:0] PCTargetE;
 always_ff @ (posedge clk) begin
   if(reset) begin
+    if(TLB) begin
+      TLB_AXI = 1;
+      TLB_PTE_Entry_entry = satp;
+      TLB_begin = 1;
+    end else begin
+      enable <= 1;
+      pc = entry;
+      // Superscalar 1
+      PCF1 <= entry;
+      // Superscalar 2
+      PCF2 <= entry + 4;
+    end
+    axi_i = 0;
     RD_WB.registers[2] = stackptr;
-    enable <= 1;
-    pc = entry;
-    // Superscalar 1
-    PCF1 <= entry;
-    // Superscalar 2
-    PCF2 <= entry + 4;
     // Write
     m_axi_awid <= 0;
     m_axi_awlen <= 7;  // Burst_Length = ARLEN[7:0] +1 = 8
@@ -543,7 +754,7 @@ always_ff @ (posedge clk) begin
     m_axi_wvalid <= 0;
     m_axi_bready <= 1;
     // Read
-    m_axi_arid <= 1; 
+    m_axi_arid <= 0; 
     m_axi_arlen <= 7;  // Burst_Length = ARLEN[7:0] +1 = 8
     m_axi_arsize <= 3; // Burst_Size = 2^ARSIZE[2:0] = 8
                        // Total bytes= Burst_Length * Burst_Size = 64 bytes
@@ -554,10 +765,36 @@ always_ff @ (posedge clk) begin
     m_axi_arvalid <= 0;
     m_axi_rready <= 0;
     m_axi_acready = 0;
+  end else if(TLB_begin) begin
+    if(!TLB_AXI) begin
+      axi_i = axi_i + 1;
+      if(axi_i < 4) begin
+        TLB_AXI = 1;
+        TLB_index = axi_i;
+        if(axi_i < 3) TLB_PTE_Entry_entry = (TLB_PPN[axi_i-1] << p_o) + (((((stackptr-PAGE_SIZE) >> p_o) & 18'h3FFFF)  & (12'h1ff << 9*(3-axi_i))) >> 9*(3-axi_i))*8;
+        else if(axi_i == 3) TLB_PTE_Entry_entry = TLB_PPN[axi_i] << p_o;
+      end else begin
+        TLB_PPN[0] = TLB_PPN[axi_i-1];
+        TLB_VPN[0] = stackptr[63:p_o];
+        TLB_Valid[0] = 1;
+        TLB_PTE_Entry_entry = TLB_PPN[1] << p_o;
+        TLB_PTE_stackptr = (TLB_PPN[2] << p_o) + ((((stackptr-PAGE_SIZE) >> p_o) & 18'h3FFFF) & (12'h1ff))*8 + 8;
+        TLB_begin = 0;
+        enable <= 1;
+        pc =  entry;
+        // Superscalar 1
+        PCF1 <= entry;
+        // Superscalar 2
+        PCF2 <= entry + 4;
+      end
+    end
   end else begin
     if(enable) begin
       if((PCSrcE1|PCSrcE2) & (PCTargetE>0)) begin
-        if(enableF & !StallF) j_b = 1;
+        if(enableF & !StallF) begin
+          j_b = 1;
+          num_noPrediction <= num_noPrediction + 1;
+        end
         pc = PCTargetE;
         // Superscalar 1
         PCF1 <= pc;
@@ -566,23 +803,21 @@ always_ff @ (posedge clk) begin
         B_pc = 0;
       end
       //@@@ pipe_begin_IF @@@
-      if(enableF) begin
-        if(!StallF) begin
-          if(j_b) begin
-            j_b = 0;
+      if(enableF & !StallF) begin
+        if(j_b) begin
+          j_b = 0;
+        end else begin
+          if(pc8) begin
+            if(B_pc == 0) pc = pc + 8; // 8 bytes = 64 bits data
           end else begin
-            if(pc8) begin
-              if(B_pc == 0) pc = pc + 8; // 8 bytes = 64 bits data
-            end else begin
-              if(B_pc == 0) pc = pc + 4; // 4 bytes = 32 bits data
-              else if(B_pc == 2) pc = PCF2;
-            end
-            // Superscalar 1
-            PCF1 <= pc;
-            // Superscalar 2
-            PCF2 <= pc + 4;
-            B_pc = 0;
+            if(B_pc == 0) pc = pc + 4; // 4 bytes = 32 bits data
+            else if(B_pc == 2) pc = PCF2;
           end
+          // Superscalar 1
+          PCF1 <= pc;
+          // Superscalar 2
+          PCF2 <= pc + 4;
+          B_pc = 0;
         end
       end
 
@@ -609,9 +844,9 @@ end
 
 //****** IF ******
 // Superscalar 1
-reg [31:0] instrF1;
+wire [31:0] instrF1;
 // Superscalar 2
-reg [31:0] instrF2;
+wire [31:0] instrF2;
 If #(.N(N),
      .B(B),
      .S(S),
@@ -636,22 +871,24 @@ If #(.N(N),
 );
 
 //@@@ pipe_IF_RD @@@
-reg  [63:0] num_clk;
-reg  finishD;
+wire  [63:0] num_clk;
+wire  [63:0] num_branch;
+wire  [63:0] num_noPrediction;
+wire  finishD;
 //--- hazard ---
-reg  StallD;
-reg  FlushD;
+wire  StallD;
+wire  FlushD;
 //--- enable ---
-reg  enableD;
+wire  enableD;
 //--- pipe ---
 // Superscalar 1
-reg  [31:0] instrD1;
-reg  [63:0] PCD1;
-reg  [63:0] PCPlus4D1;
+wire  [31:0] instrD1;
+wire  [63:0] PCD1;
+wire  [63:0] PCPlus4D1;
 // Superscalar 2
-reg  [31:0] instrD2;
-reg  [63:0] PCD2;
-reg  [63:0] PCPlus4D2;
+wire  [31:0] instrD2;
+wire  [63:0] PCD2;
+wire  [63:0] PCPlus4D2;
 always_ff @ (posedge clk) begin
   num_clk <= num_clk+1;
   if(!StallD) enableD <= enableF;
@@ -685,35 +922,35 @@ end
 
 //****** RD | WB ******
 // Superscalar 1
-reg [63:0] RD1D1;
-reg [63:0] RD2D1;
-reg        RegWriteD1;
-reg [1:0]  ResultSrcD1;
-reg [4:0]  MemWriteReadSizeD1;
-reg [5:0]  ALUControlD1;
-reg        ALUSrcD1;
-reg [63:0] ImmExtD1;
-reg [4:0]  Rs1D1;
-reg [4:0]  Rs2D1;
-reg [4:0]  RdD1;
-reg  JumpD1;
-reg  BranchD1;
-reg        EcallD1;
+wire [63:0] RD1D1;
+wire [63:0] RD2D1;
+wire        RegWriteD1;
+wire [1:0]  ResultSrcD1;
+wire [4:0]  MemWriteReadSizeD1;
+wire [5:0]  ALUControlD1;
+wire        ALUSrcD1;
+wire [63:0] ImmExtD1;
+wire [4:0]  Rs1D1;
+wire [4:0]  Rs2D1;
+wire [4:0]  RdD1;
+wire  JumpD1;
+wire  BranchD1;
+wire        EcallD1;
 // Superscalar 2
-reg [63:0] RD1D2;
-reg [63:0] RD2D2;
-reg        RegWriteD2;
-reg [1:0]  ResultSrcD2;
-reg [4:0]  MemWriteReadSizeD2;
-reg [5:0]  ALUControlD2;
-reg        ALUSrcD2;
-reg [63:0] ImmExtD2;
-reg [4:0]  Rs1D2;
-reg [4:0]  Rs2D2;
-reg [4:0]  RdD2;
-reg  JumpD2;
-reg  BranchD2;
-reg        EcallD2;
+wire [63:0] RD1D2;
+wire [63:0] RD2D2;
+wire        RegWriteD2;
+wire [1:0]  ResultSrcD2;
+wire [4:0]  MemWriteReadSizeD2;
+wire [5:0]  ALUControlD2;
+wire        ALUSrcD2;
+wire [63:0] ImmExtD2;
+wire [4:0]  Rs1D2;
+wire [4:0]  Rs2D2;
+wire [4:0]  RdD2;
+wire  JumpD2;
+wire  BranchD2;
+wire        EcallD2;
 rd_wb RD_WB(
   //****** RD ******
   //--- enable ---
@@ -758,6 +995,8 @@ rd_wb RD_WB(
   .enableW(enableW),
   .m_axi_acready(m_axi_acready),
   .num_clk(num_clk),
+  .num_branch(num_branch),
+  .num_noPrediction(num_noPrediction),
   // Superscalar 1
   .RdW1(RdW1),
   .RegWriteW1(RegWriteW1),
@@ -771,52 +1010,52 @@ rd_wb RD_WB(
 );
 
 //@@@ pipe_RD_ALU && pipe_WB_end @@@
-reg finishE;
+wire finishE;
 //--- hazard ---
-reg StallE;
-reg FlushE;
+wire StallE;
+wire FlushE;
 //--- enable ---
-reg enableE;
+wire enableE;
 // Superscalar 1
 //--- pipe ---
-reg [4:0]  RdE1;
-reg [63:0] PCE1;
-reg [63:0] PCPlus4E1;
+wire [4:0]  RdE1;
+wire [63:0] PCE1;
+wire [63:0] PCPlus4E1;
 //--- register_file ---
-reg [63:0] RD1E1;
-reg [63:0] RD2E1;
+wire [63:0] RD1E1;
+wire [63:0] RD2E1;
 //--- control_unit ---
-reg        RegWriteE1;
-reg [1:0]  ResultSrcE1;
-reg [4:0]  MemWriteReadSizeE1;
-reg [5:0]  ALUControlE1;
-reg        ALUSrcE1;
-reg [63:0] ImmExtE1;
-reg [4:0]  Rs1E1;
-reg [4:0]  Rs2E1;
-reg JumpE1;
-reg BranchE1;
-reg        EcallE1;
+wire        RegWriteE1;
+wire [1:0]  ResultSrcE1;
+wire [4:0]  MemWriteReadSizeE1;
+wire [5:0]  ALUControlE1;
+wire        ALUSrcE1;
+wire [63:0] ImmExtE1;
+wire [4:0]  Rs1E1;
+wire [4:0]  Rs2E1;
+wire JumpE1;
+wire BranchE1;
+wire        EcallE1;
 // Superscalar 2
 //--- pipe ---
-reg [4:0]  RdE2;
-reg [63:0] PCE2;
-reg [63:0] PCPlus4E2;
+wire [4:0]  RdE2;
+wire [63:0] PCE2;
+wire [63:0] PCPlus4E2;
 //--- register_file ---
-reg [63:0] RD1E2;
-reg [63:0] RD2E2;
+wire [63:0] RD1E2;
+wire [63:0] RD2E2;
 //--- control_unit ---
-reg        RegWriteE2;
-reg [1:0]  ResultSrcE2;
-reg [4:0]  MemWriteReadSizeE2;
-reg [5:0]  ALUControlE2;
-reg        ALUSrcE2;
-reg [63:0] ImmExtE2;
-reg [4:0]  Rs1E2;
-reg [4:0]  Rs2E2;
-reg JumpE2;
-reg BranchE2;
-reg        EcallE2;
+wire        RegWriteE2;
+wire [1:0]  ResultSrcE2;
+wire [4:0]  MemWriteReadSizeE2;
+wire [5:0]  ALUControlE2;
+wire        ALUSrcE2;
+wire [63:0] ImmExtE2;
+wire [4:0]  Rs1E2;
+wire [4:0]  Rs2E2;
+wire JumpE2;
+wire BranchE2;
+wire        EcallE2;
 always_ff @ (posedge clk) begin
   //--- pipe_RD_ALU ---
   if(!StallE) enableE <= enableD;
@@ -861,50 +1100,49 @@ always_ff @ (posedge clk) begin
     RdE2 <= 0;
     PCE2 <= 0;
     PCPlus4E2 <= 0;
-  end else if(enableD) begin
-    if(!FlushE & !StallE) begin
-      finishE <= finishD;
-      // Superscalar 1
-      //--- control_unit ---
-      RegWriteE1 <= RegWriteD1;
-      ResultSrcE1 <= ResultSrcD1;
-      MemWriteReadSizeE1 <= MemWriteReadSizeD1;
-      ALUControlE1 <= ALUControlD1;
-      ALUSrcE1 <= ALUSrcD1;
-      ImmExtE1 <= ImmExtD1;
-      Rs1E1 <= Rs1D1;
-      Rs2E1 <= Rs2D1;
-      JumpE1 <= JumpD1;
-      BranchE1 <= BranchD1;
-      EcallE1 <= EcallD1;
-      //--- register_file ---
-      RD1E1 <= RD1D1;
-      RD2E1 <= RD2D1;
-      //--- pipe ---
-      RdE1 <= RdD1;
-      PCE1 <= PCD1;
-      PCPlus4E1 <= PCPlus4D1;
-      // Superscalar 2
-      //--- control_unit ---
-      RegWriteE2 <= RegWriteD2;
-      ResultSrcE2 <= ResultSrcD2;
-      MemWriteReadSizeE2 <= MemWriteReadSizeD2;
-      ALUControlE2 <= ALUControlD2;
-      ALUSrcE2 <= ALUSrcD2;
-      ImmExtE2 <= ImmExtD2;
-      Rs1E2 <= Rs1D2;
-      Rs2E2 <= Rs2D2;
-      JumpE2 <= JumpD2;
-      BranchE2 <= BranchD2;
-      EcallE2 <= EcallD2;
-      //--- register_file ---
-      RD1E2 <= RD1D2;
-      RD2E2 <= RD2D2;
-      //--- pipe ---
-      RdE2 <= RdD2;
-      PCE2 <= PCD2;
-      PCPlus4E2 <= PCPlus4D2;
-    end
+  end else if(enableD & !FlushE & !StallE) begin
+    finishE <= finishD;
+    // Superscalar 1
+    //--- control_unit ---
+    RegWriteE1 <= RegWriteD1;
+    ResultSrcE1 <= ResultSrcD1;
+    MemWriteReadSizeE1 <= MemWriteReadSizeD1;
+    ALUControlE1 <= ALUControlD1;
+    ALUSrcE1 <= ALUSrcD1;
+    ImmExtE1 <= ImmExtD1;
+    Rs1E1 <= Rs1D1;
+    Rs2E1 <= Rs2D1;
+    JumpE1 <= JumpD1;
+    BranchE1 <= BranchD1;
+    EcallE1 <= EcallD1;
+    //--- register_file ---
+    RD1E1 <= RD1D1;
+    RD2E1 <= RD2D1;
+    //--- pipe ---
+    RdE1 <= RdD1;
+    PCE1 <= PCD1;
+    PCPlus4E1 <= PCPlus4D1;
+    // Superscalar 2
+    //--- control_unit ---
+    RegWriteE2 <= RegWriteD2;
+    ResultSrcE2 <= ResultSrcD2;
+    MemWriteReadSizeE2 <= MemWriteReadSizeD2;
+    ALUControlE2 <= ALUControlD2;
+    ALUSrcE2 <= ALUSrcD2;
+    ImmExtE2 <= ImmExtD2;
+    Rs1E2 <= Rs1D2;
+    Rs2E2 <= Rs2D2;
+    JumpE2 <= JumpD2;
+    BranchE2 <= BranchD2;
+    EcallE2 <= EcallD2;
+    //--- register_file ---
+    RD1E2 <= RD1D2;
+    RD2E2 <= RD2D2;
+    //--- pipe ---
+    RdE2 <= RdD2;
+    PCE2 <= PCD2;
+    PCPlus4E2 <= PCPlus4D2;
+    if(JumpD1|JumpD2|BranchD1|BranchD2) num_branch <= num_branch + 1;
   end
 
   //--- pipe_WB_end ---
@@ -918,19 +1156,19 @@ end
 
 //****** ALU ******
 // Superscalar 1
-reg [2:0]  FrowardAE1;
-reg [2:0]  FrowardBE1;
-reg [63:0] ALUResultE1;
-reg [63:0] WriteDataE1;
-reg [63:0] ALUResultM1;
+wire [2:0]  FrowardAE1;
+wire [2:0]  FrowardBE1;
+wire [63:0] ALUResultE1;
+wire [63:0] WriteDataE1;
+wire [63:0] ALUResultM1;
 // Superscalar 2
-reg [2:0]  FrowardAE2;
-reg [2:0]  FrowardBE2;
-reg [63:0] ALUResultE2;
-reg [63:0] WriteDataE2;
-reg [63:0] ALUResultM2;
+wire [2:0]  FrowardAE2;
+wire [2:0]  FrowardBE2;
+wire [63:0] ALUResultE2;
+wire [63:0] WriteDataE2;
+wire [63:0] ALUResultM2;
 alu #(.B_N(B_N),
-      .B_H(B_H)
+      .b_h(b_h)
 )ALU(
   .clk(clk),
   .enableE(enableE),
@@ -977,63 +1215,61 @@ alu #(.B_N(B_N),
 );
 
 //@@@ pipe_ALU_MEM @@@
-reg finishM;
+wire finishM;
 //--- hazard ---
-reg StallM;
+wire StallM;
 //--- enable ---
-reg enableM;
+wire enableM;
 // Superscalar 1
-reg        RegWriteM1;
-reg [1:0]  ResultSrcM1;
-reg [4:0]  MemWriteReadSizeM1;
-reg [63:0] WriteDataM1;
-reg [4:0]  RdM1;
-reg [63:0] PCPlus4M1;
-reg        EcallM1;
+wire        RegWriteM1;
+wire [1:0]  ResultSrcM1;
+wire [4:0]  MemWriteReadSizeM1;
+wire [63:0] WriteDataM1;
+wire [4:0]  RdM1;
+wire [63:0] PCPlus4M1;
+wire        EcallM1;
 // Superscalar 2
-reg        RegWriteM2;
-reg [1:0]  ResultSrcM2;
-reg [4:0]  MemWriteReadSizeM2;
-reg [63:0] WriteDataM2;
-reg [4:0]  RdM2;
-reg [63:0] PCPlus4M2;
-reg        EcallM2;
+wire        RegWriteM2;
+wire [1:0]  ResultSrcM2;
+wire [4:0]  MemWriteReadSizeM2;
+wire [63:0] WriteDataM2;
+wire [4:0]  RdM2;
+wire [63:0] PCPlus4M2;
+wire        EcallM2;
 always_ff @ (posedge clk) begin
   if(!StallM) enableM <= enableE;
-  if(enableE) begin
-    if(!StallM) begin
-      finishM <= finishE;
-      // Superscalar 1
-      ALUResultM1 <= ALUResultE1;
-      //--- pipe ---
-      RegWriteM1 <= RegWriteE1;
-      ResultSrcM1 <= ResultSrcE1;
-      MemWriteReadSizeM1 <= MemWriteReadSizeE1;
-      WriteDataM1 <= WriteDataE1;
-      RdM1 <= RdE1;
-      PCPlus4M1 <= PCPlus4E1;
-      EcallM1 <= EcallE1;
-      // Superscalar 2
-      ALUResultM2 <= ALUResultE2;
-      //--- pipe ---
-      RegWriteM2 <= RegWriteE2;
-      ResultSrcM2 <= ResultSrcE2;
-      MemWriteReadSizeM2 <= MemWriteReadSizeE2;
-      WriteDataM2 <= WriteDataE2;
-      RdM2 <= RdE2;
-      PCPlus4M2 <= PCPlus4E2;
-      EcallM2 <= EcallE2;
-    end
+  if(enableE & !StallM) begin
+    finishM <= finishE;
+    // Superscalar 1
+    ALUResultM1 <= ALUResultE1;
+    //--- pipe ---
+    RegWriteM1 <= RegWriteE1;
+    ResultSrcM1 <= ResultSrcE1;
+    MemWriteReadSizeM1 <= MemWriteReadSizeE1;
+    WriteDataM1 <= WriteDataE1;
+    RdM1 <= RdE1;
+    PCPlus4M1 <= PCPlus4E1;
+    EcallM1 <= EcallE1;
+    // Superscalar 2
+    ALUResultM2 <= ALUResultE2;
+    //--- pipe ---
+    RegWriteM2 <= RegWriteE2;
+    ResultSrcM2 <= ResultSrcE2;
+    MemWriteReadSizeM2 <= MemWriteReadSizeE2;
+    WriteDataM2 <= WriteDataE2;
+    RdM2 <= RdE2;
+    PCPlus4M2 <= PCPlus4E2;
+    EcallM2 <= EcallE2;
   end
 end
 
 //****** MEM ******
-reg        Stall_miss1;
-reg        Stall_miss2;
+wire        Stall_miss1;
+wire        Stall_miss2;
 // Superscalar 1
-reg [63:0] ReadDataM1;
+wire [63:0] ReadDataM1;
 // Superscalar 2
-reg [63:0] ReadDataM2;
+wire [63:0] ReadDataM2;
 mem #(.N(N),
       .B(B),
       .S(S),
@@ -1045,14 +1281,13 @@ mem #(.N(N),
 )MEM(
   .clk(clk),
   .enableM(enableM),
+  .StallM(StallM),
   .Stall_miss1(Stall_miss1),
   .Stall_miss2(Stall_miss2),
   .MEM_miss1(MEM_miss1),
   .MEM_miss2(MEM_miss2),
   .MEM_addr1(MEM_addr1),
   .MEM_addr2(MEM_addr2),
-  .Hazard_addr1(Hazard_addr1),
-  .Hazard_addr2(Hazard_addr2),
   .MEM_Write1(MEM_Write1),
   .MEM_Size1(MEM_Size1),
   .MEM_Data1(MEM_Data1),
@@ -1072,52 +1307,51 @@ mem #(.N(N),
 );
 
 //@@@ pipe_MEM_WB @@@
-reg finishW;
+wire finishW;
 //--- hazard ---
-reg StallW;
+wire StallW;
 //--- enable ---
-reg enableW;
+wire enableW;
 // Superscalar 1
-reg        RegWriteW1;
-reg [4:0]  RdW1;
-reg [63:0] ResultW1;
-reg        EcallW1;
+wire        RegWriteW1;
+wire [4:0]  RdW1;
+wire [63:0] ResultW1;
+wire        EcallW1;
 // Superscalar 2
-reg        RegWriteW2;
-reg [4:0]  RdW2;
-reg [63:0] ResultW2;
-reg        EcallW2;
+wire        RegWriteW2;
+wire [4:0]  RdW2;
+wire [63:0] ResultW2;
+wire        EcallW2;
 always_ff @ (posedge clk) begin
   if(!StallW) enableW <= enableM;
-  if(enableM) begin
-    if(!StallW) begin
-      finishW <= finishM;
-      // Superscalar 1
-      case(ResultSrcM1)
-        2'b00: ResultW1 <= ALUResultM1;
-        2'b01: ResultW1 <= ReadDataM1;
-        2'b10: ResultW1 <= PCPlus4M1;
-      endcase
-      //--- pipe ---
-      RegWriteW1 <= RegWriteM1;
-      RdW1 <= RdM1;
-      EcallW1 <= EcallM1;
-      // Superscalar 2
-      case(ResultSrcM2)
-        2'b00: ResultW2 <= ALUResultM2;
-        2'b01: ResultW2 <= ReadDataM2;
-        2'b10: ResultW2 <= PCPlus4M2;
-      endcase
-      //--- pipe ---
-      RegWriteW2 <= RegWriteM2;
-      RdW2 <= RdM2;
-      EcallW2 <= EcallM2;
-    end
+  if(enableM & !StallW) begin
+    finishW <= finishM;
+    // Superscalar 1
+    case(ResultSrcM1)
+      2'b00: ResultW1 <= ALUResultM1;
+      2'b01: ResultW1 <= ReadDataM1;
+      2'b10: ResultW1 <= PCPlus4M1;
+    endcase
+    //--- pipe ---
+    RegWriteW1 <= RegWriteM1;
+    RdW1 <= RdM1;
+    EcallW1 <= EcallM1;
+    // Superscalar 2
+    case(ResultSrcM2)
+      2'b00: ResultW2 <= ALUResultM2;
+      2'b01: ResultW2 <= ReadDataM2;
+      2'b10: ResultW2 <= PCPlus4M2;
+    endcase
+    //--- pipe ---
+    RegWriteW2 <= RegWriteM2;
+    RdW2 <= RdM2;
+    EcallW2 <= EcallM2;
   end
 end
 
 //****** Hazard_Unit ******
 hazard Hazard(
+  .IF_miss(IF_miss),
   .enableD(enableD),
   .PCSrcE1(PCSrcE1),
   .PCSrcE2(PCSrcE2),

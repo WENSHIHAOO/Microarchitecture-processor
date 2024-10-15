@@ -11,32 +11,31 @@ module mem
 )
 (
     //****** MEM ******
-    input  reg clk,
-    input  reg        enableM,
-    output reg        Stall_miss1,
-    output reg        Stall_miss2,
-    output reg        MEM_miss1,
-    output reg        MEM_miss2,
-    output reg [63:0] MEM_addr1,
-    output reg [63:0] MEM_addr2,
-    output reg [63:0] Hazard_addr1,
-    output reg [63:0] Hazard_addr2,
-    output reg        MEM_Write1,
-    output reg [2:0]  MEM_Size1,
-    output reg [63:0] MEM_Data1,
-    output reg        MEM_Write2,
-    output reg [2:0]  MEM_Size2,
-    output reg [63:0] MEM_Data2,
+    input  clk,
+    input         enableM,
+    input         StallM,
+    output        Stall_miss1,
+    output        Stall_miss2,
+    output        MEM_miss1,
+    output        MEM_miss2,
+    output [63:0] MEM_addr1,
+    output [63:0] MEM_addr2,
+    output        MEM_Write1,
+    output [2:0]  MEM_Size1,
+    output [63:0] MEM_Data1,
+    output        MEM_Write2,
+    output [2:0]  MEM_Size2,
+    output [63:0] MEM_Data2,
     // Superscalar 1
-    input  reg [4:0]  MemWriteReadSizeM1,
-    input  reg [63:0] ALUResultM1,
-    input  reg [63:0] WriteDataM1,
-    output reg [63:0] ReadDataM1,
+    input  [4:0]  MemWriteReadSizeM1,
+    input  [63:0] ALUResultM1,
+    input  [63:0] WriteDataM1,
+    output [63:0] ReadDataM1,
     // Superscalar 2
-    input  reg [4:0]  MemWriteReadSizeM2,
-    input  reg [63:0] ALUResultM2,
-    input  reg [63:0] WriteDataM2,
-    output reg [63:0] ReadDataM2
+    input  [4:0]  MemWriteReadSizeM2,
+    input  [63:0] ALUResultM2,
+    input  [63:0] WriteDataM2,
+    output [63:0] ReadDataM2
 );
 reg [63:0] Data [S][N][B];
 reg [t:0] Valid_Tag [S][N];
@@ -76,15 +75,12 @@ always_comb begin // Write miss is written here because always_comb has no delay
                 end
             end else if(MemWriteReadSizeM1[4]) begin
                 if(!(MemWriteReadSizeM2[4] & (ALUResultM1 == ALUResultM2))) begin  // When 2 also writes this address, 1 does not miss.
-                    if(MEM_miss1) Stall_miss1 = 1; // When the previous 1 miss, 1 Stall.
-                    else begin // Let both axi and cpu run.
-                        MEM_Write1 = 1;
-                        MEM_Size1 = MemWriteReadSizeM1[2:0];
-                        MEM_Data1 = WriteDataM1;
-                        MEM_addr1 = ALUResultM1;
-                        Hazard_addr1 = ALUResultM1; // Since write is not Stall directly, MEM_addr2 may change, so adding this hazrd is only used for write.
-                        MEM_miss1 = 1;
-                    end
+                    MEM_Write1 = 1;
+                    MEM_Size1 = MemWriteReadSizeM1[2:0];
+                    MEM_Data1 = WriteDataM1;
+                    MEM_addr1 = ALUResultM1;
+                    MEM_miss1 = 1;
+                    Stall_miss1 = 1; // Write 1 Stall directly.
                 end
             end
         end
@@ -99,15 +95,15 @@ always_comb begin // Write miss is written here because always_comb has no delay
                 3'b110: ReadDataM1 = {{32{1'b0}}, ReadDataM1[32*ALUResultM1[2]+:32]}; // lwu
             endcase
             if(!MEM_miss1) Stall_miss1 = 0; // When the read 1 is complete, stop 1 Stall.
-        end else if(!MEM_miss1 & MemWriteReadSizeM1[4] & !(MemWriteReadSizeM2[4] & (ALUResultM1 == ALUResultM2))) Stall_miss1 = 0; // When Write 1 is completed, and 2 not also reads this address, stop Stall.
+        end else if(!MEM_miss1 & MemWriteReadSizeM1[4]) Stall_miss1 = 0; // When the write 1 is complete, stop 1 Stall.
     end
 end
 
 // Write
 always_ff @ (posedge clk) begin
-    if(enableM) begin
+    if(enableM & !StallM) begin
         if(MemWriteReadSizeM1[4]) begin
-            if(!(MemWriteReadSizeM2[4] & (ALUResultM1 == ALUResultM2))) begin // If two Superscalar write at the same time.
+            if(!(MemWriteReadSizeM2[4] & (ALUResultM1 == ALUResultM2))) begin // If two writes at the same time.
                 if(Valid_Tag[set1][0][t] & (Valid_Tag[set1][0][t-1:0] == tag1)) begin
                     case(MemWriteReadSizeM1[2:0])
                         3'b000: begin
@@ -180,25 +176,22 @@ always_comb begin // Write miss is written here because always_comb has no delay
         end
         else begin
             if(MemWriteReadSizeM2[3]) begin
-                if(MemWriteReadSizeM1[4] & (ALUResultM1[63:y] == ALUResultM2[63:y])) ReadDataM2 = 0; // when Superscalar 1 write, Superscalar 2 read.
+                if(MemWriteReadSizeM1[4] & (ALUResultM1[63:y] == ALUResultM2[63:y])) ReadDataM2 = 0; // when 1 write, 2 read.
                 else begin
                     MEM_addr2 = ALUResultM2;
                     MEM_miss2 = 1;
                     Stall_miss2 = 1; // Read 2 Stall directly.
                 end
             end else if(MemWriteReadSizeM2[4]) begin
-                    if(MEM_miss2) Stall_miss2 = 1; // When the previous 2 miss, 2 Stall.
-                    else begin // Let both axi and cpu run.
-                        MEM_Write2 = 1;
-                        MEM_Size2 = MemWriteReadSizeM2[2:0];
-                        MEM_Data2 = WriteDataM2;
-                        MEM_addr2 = ALUResultM2; // Since write is not Stall directly, MEM_addr2 may change, so adding this hazrd is only used for write.
-                        Hazard_addr2 = ALUResultM2; 
-                        MEM_miss2 = 1;
-                    end
+                    MEM_Write2 = 1;
+                    MEM_Size2 = MemWriteReadSizeM2[2:0];
+                    MEM_Data2 = WriteDataM2;
+                    MEM_addr2 = ALUResultM2;
+                    MEM_miss2 = 1;
+                    Stall_miss2 = 1; // Write 2 Stall directly.
             end
         end
-        // when Superscalar 1 write, Superscalar 2 read.
+        // when 1 write, 2 read.
         if(MemWriteReadSizeM1[4] & (ALUResultM1[63:y] == ALUResultM2[63:y])) begin
             case(MemWriteReadSizeM1[2:0])
                 3'b000: ReadDataM2[8*ALUResultM1[2:0]+:8] = WriteDataM1;
@@ -224,7 +217,7 @@ end
 
 // Write
 always_ff @ (posedge clk) begin
-    if(enableM) begin
+    if(enableM & !StallM) begin
         if(MemWriteReadSizeM2[4]) begin
             if(Valid_Tag[set2][0][t] & (Valid_Tag[set2][0][t-1:0] == tag2)) begin
                 case(MemWriteReadSizeM2[2:0])

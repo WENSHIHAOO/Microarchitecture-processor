@@ -34,8 +34,9 @@ extern "C" {
             }
         }
         for(int ofs = 0; ofs < size; ++ofs) {
-            pending_writes[addr+ofs] = (char)val;
-            if (DEBUG_WRITES) cerr << "Received pending write for address 0x" << std::hex << (addr+ofs) << " value 0x" << (int)(val) << endl;
+            long long physptr = System::sys->virt_to_phy(addr + ofs);
+            pending_writes[physptr] = (char)val;
+            if (DEBUG_WRITES) cerr << "Received pending write for address 0x" << std::hex << (physptr) << " value 0x" << (int)(val) << endl;
             val >>= 8;
         }
     }

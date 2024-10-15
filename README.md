@@ -1,5 +1,5 @@
 # Microarchitecture-processor
-This is a RISC-V 64IM processor. It has Super-Scalar, Set-Associative Caches, Branch predictor, and Victim Caches. This microarchitecture processor uses a fake operating system to simulate the behavior of the infrastructure to forge the system call request.
+This is a RISC-V 64IM processor. It has Super-Scalar, Set-Associative Caches, Branch predictor, Translation Lookaside Buffer (TLB), and Victim Caches. This microarchitecture processor uses a fake operating system to simulate the behavior of the infrastructure to forge the system call request.
 
 Hardware design process: Conceptual Design --> Behavioral Implementation --> Evaluation --> Structural Implementation --> Layout --> Manufacturing --> Packaging
 
@@ -18,10 +18,13 @@ Due to cost and time reasons, this project can only be completed: Conceptual Des
     - Change `PROG=/test/...` in `Makefile`.
 
 3. **Generate 'trace.vcd' waveform file**
-    - Delete `//NO TRACE` in `main.cpp`.
-    - Restore `VM_TRACE` in `main.cpp`.
+    - Change `TRACE?=#--trace` to `TRACE?=--trace` in `Makefile`.
 
-## Performance Results
+4. **Enable TLB**
+    - Change `HAVETLB=n` to `HAVETLB=y` in `Makefile`. 
+    - Change `TLB=0` to `TLB=1` in line 66 of `top.sv`.
+
+## Performance Results (prog5 is a small game, so its performance is not included.)
 
 **1. 5+ stage, Set-Associative & Victim Caches**
 

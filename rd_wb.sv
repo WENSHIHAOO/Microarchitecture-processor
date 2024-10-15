@@ -2,57 +2,59 @@ module rd_wb
 (
     //****** RD ******
     //--- enable ---
-    input  reg enableD,
+    input  enableD,
     // Superscalar 1
     //--- register_file ---
-    output reg [63:0] RD1D1,
-    output reg [63:0] RD2D1,
+    output [63:0] RD1D1,
+    output [63:0] RD2D1,
     //--- control_unit ---
-    input  reg [31:0] instrD1,
-    output reg        RegWriteD1,
-    output reg [1:0]  ResultSrcD1,
-    output reg [4:0]  MemWriteReadSizeD1,
-    output reg [5:0]  ALUControlD1,
-    output reg        ALUSrcD1,
-    output reg [63:0] ImmExtD1,
-    output reg [4:0]  Rs1D1,
-    output reg [4:0]  Rs2D1,
-    output reg [4:0]  RdD1,
-    output reg JumpD1,
-    output reg BranchD1,
-    output reg        EcallD1,
+    input  [31:0] instrD1,
+    output        RegWriteD1,
+    output [1:0]  ResultSrcD1,
+    output [4:0]  MemWriteReadSizeD1,
+    output [5:0]  ALUControlD1,
+    output        ALUSrcD1,
+    output [63:0] ImmExtD1,
+    output [4:0]  Rs1D1,
+    output [4:0]  Rs2D1,
+    output [4:0]  RdD1,
+    output JumpD1,
+    output BranchD1,
+    output        EcallD1,
     // Superscalar 2
     //--- register_file ---
-    output reg [63:0] RD1D2,
-    output reg [63:0] RD2D2,
+    output [63:0] RD1D2,
+    output [63:0] RD2D2,
     //--- control_unit ---
-    input  reg [31:0] instrD2,
-    output reg        RegWriteD2,
-    output reg [1:0]  ResultSrcD2,
-    output reg [4:0]  MemWriteReadSizeD2,
-    output reg [5:0]  ALUControlD2,
-    output reg        ALUSrcD2,
-    output reg [63:0] ImmExtD2,
-    output reg [4:0]  Rs1D2,
-    output reg [4:0]  Rs2D2,
-    output reg [4:0]  RdD2,
-    output reg JumpD2,
-    output reg BranchD2,
-    output reg        EcallD2,
+    input  [31:0] instrD2,
+    output        RegWriteD2,
+    output [1:0]  ResultSrcD2,
+    output [4:0]  MemWriteReadSizeD2,
+    output [5:0]  ALUControlD2,
+    output        ALUSrcD2,
+    output [63:0] ImmExtD2,
+    output [4:0]  Rs1D2,
+    output [4:0]  Rs2D2,
+    output [4:0]  RdD2,
+    output JumpD2,
+    output BranchD2,
+    output        EcallD2,
     //****** WB ******
-    output reg enableW,
-    output reg m_axi_acready,
-    input  reg [63:0] num_clk,
+    output enableW,
+    output m_axi_acready,
+    input  [63:0] num_clk,
+    output [63:0] num_branch,
+    input  [63:0] num_noPrediction,
     // Superscalar 1
-    input  reg [4:0]  RdW1,
-    input  reg        RegWriteW1,
-    input  reg [63:0] ResultW1,
-    input  reg        EcallW1,
+    input  [4:0]  RdW1,
+    input         RegWriteW1,
+    input  [63:0] ResultW1,
+    input         EcallW1,
     // Superscalar 2
-    input  reg [4:0]  RdW2,
-    input  reg        RegWriteW2,
-    input  reg [63:0] ResultW2,
-    input  reg        EcallW2
+    input  [4:0]  RdW2,
+    input         RegWriteW2,
+    input  [63:0] ResultW2,
+    input         EcallW2
 );
 //****** RD ******
 //--- control_unit ---
@@ -273,6 +275,7 @@ always_comb begin
             7'b1110011: begin
                 if(instrD1[14:12] == 0 && instrD1[31:20] == 0) begin
                     EcallD1 = 1; // ecall
+                    ALUControlD1 = 29;
                 end
             end
         endcase
@@ -512,7 +515,7 @@ logic [63:0] a4;
 logic [63:0] a5;
 logic [63:0] a6;
 logic [63:0] a7;
-reg  [63:0] registers [32]; // $0 is hardwired to the value zero
+reg [63:0] registers [32]; // $0 is hardwired to the value zero
 always_comb begin
     //--- WB ---
     if(enableW) begin
@@ -530,11 +533,10 @@ always_comb begin
             a5 = registers[15];
             a6 = registers[16];
             a7 = registers[17];
-            //$display("ecall: %0x, %0x, %0x, %0x, %0x, %0x, %0x, %0x, %0x", a7, a0, a1, a2, a3, a4, a5, a6, a0);
             do_ecall(a7, a0, a1, a2, a3, a4, a5, a6, a0);
             registers[10] = a0;
             m_axi_acready = 1;
-            if(a7 == 231) $display("num_clk:%0d", num_clk);
+            if(a7 == 231) $display("num_clk:%0d; num_branch:%0d; num_noPrediction:%0d;", num_clk, num_branch, num_noPrediction);
         end
     end
 

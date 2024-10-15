@@ -1,7 +1,7 @@
 module alu
 #(
     B_N = 0, // Number of ways of BTB
-    B_H = 0  // Number of history bits
+    b_h = 0  // Number of history bits
 )
 (
   //****** ALU ******
@@ -50,7 +50,7 @@ module alu
 );
 //****** Branch Prediction ******
 reg          Valid [B_N];
-reg[B_H-1:0] BH    [B_N]; // Branch history
+reg[b_h-1:0] BH    [B_N]; // Branch history
 reg   [63:0] BIA   [B_N]; // Branch instruction address field
 reg   [63:0] BTA   [B_N]; // Branch target address field
 logic [6:0]  index;

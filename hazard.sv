@@ -1,48 +1,49 @@
 module hazard
 (
     //****** Hazard_Unit ******
-    input  reg enableD,
-    input  reg PCSrcE1,
-    input  reg PCSrcE2,
-    output reg StallF,
-    output reg StallD,
-    output reg StallE,
-    output reg StallM,
-    output reg StallW,
-    output reg FlushD,
-    output reg FlushE,
+    input  IF_miss,
+    input  enableD,
+    input  PCSrcE1,
+    input  PCSrcE2,
+    output StallF,
+    output StallD,
+    output StallE,
+    output StallM,
+    output StallW,
+    output FlushD,
+    output FlushE,
     // Superscalar 1
-    input  reg        EcallE1,
-    input  reg        EcallM1,
-    output reg [2:0]  FrowardAE1,
-    output reg [2:0]  FrowardBE1,
-    input  reg [4:0]  Rs1D1,
-    input  reg [4:0]  Rs2D1,
-    input  reg [4:0]  Rs1E1,
-    input  reg [4:0]  Rs2E1,
-    input  reg [4:0]  RdE1,
-    input  reg        ResultSrcE10,
-    input  reg [4:0]  RdM1,
-    input  reg        RegWriteM1,
-    input  reg [4:0]  RdW1,
-    input  reg        RegWriteW1,
-    input  reg Stall_miss1, // AXI MEM wait
+    input         EcallE1,
+    input         EcallM1,
+    output [2:0]  FrowardAE1,
+    output [2:0]  FrowardBE1,
+    input  [4:0]  Rs1D1,
+    input  [4:0]  Rs2D1,
+    input  [4:0]  Rs1E1,
+    input  [4:0]  Rs2E1,
+    input  [4:0]  RdE1,
+    input         ResultSrcE10,
+    input  [4:0]  RdM1,
+    input         RegWriteM1,
+    input  [4:0]  RdW1,
+    input         RegWriteW1,
+    input  Stall_miss1, // AXI MEM wait
     // Superscalar 2
-    input  reg        EcallE2,
-    input  reg        EcallM2,
-    output reg [2:0]  FrowardAE2,
-    output reg [2:0]  FrowardBE2,
-    input  reg [4:0]  Rs1D2,
-    input  reg [4:0]  Rs2D2,
-    input  reg [4:0]  Rs1E2,
-    input  reg [4:0]  Rs2E2,
-    input  reg [4:0]  RdE2,
-    input  reg        ResultSrcE20,
-    input  reg [4:0]  RdM2,
-    input  reg        RegWriteM2,
-    input  reg [4:0]  RdW2,
-    input  reg        RegWriteW2,
-    input  reg Stall_miss2 // AXI MEM wait
+    input         EcallE2,
+    input         EcallM2,
+    output [2:0]  FrowardAE2,
+    output [2:0]  FrowardBE2,
+    input  [4:0]  Rs1D2,
+    input  [4:0]  Rs2D2,
+    input  [4:0]  Rs1E2,
+    input  [4:0]  Rs2E2,
+    input  [4:0]  RdE2,
+    input         ResultSrcE20,
+    input  [4:0]  RdM2,
+    input         RegWriteM2,
+    input  [4:0]  RdW2,
+    input         RegWriteW2,
+    input  Stall_miss2 // AXI MEM wait
 );
 always_comb begin
     // Forward ALU hazard 1
@@ -77,7 +78,7 @@ logic loadHazard;
 logic Stall;
 always_comb begin
     // AXI MEM wait
-    Stall  = Stall_miss1 | Stall_miss2;
+    Stall  = Stall_miss1 | Stall_miss2 | IF_miss;
     // ecall hazard
     ecallHazard =  enableD &
                 ( ((EcallE1 | EcallM1) & ((Rs1D1 == 10) | (Rs2D1 == 10))) 
