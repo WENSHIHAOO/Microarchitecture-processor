@@ -1,11 +1,17 @@
 .PHONY: all run clean submit
 
-PROG=/home/student/cse502/test/tests/project/prog1
+#PROG=~/project/test/sum.o
+#PROG=~/project/Image
+#PROG=~/project/vmlinux1
+#PROG=~/project/vmlinux
+PROG=~/project/boot.bin
+#PROG=/shared/cse502/tests/project/prog1
 #PROG=/shared/cse502/tests/bbl.bin
 
+#OUTPUT_FILE=~/project/output1.txt
 TRACE?=#--trace
 HAVETLB=n
-FULLSYSTEM=n
+FULLSYSTEM=y
 
 VFILES=$(wildcard *.sv)
 CFILES=$(wildcard *.cpp)
@@ -17,9 +23,9 @@ obj_dir/Vtop: obj_dir/Vtop.mk
 
 obj_dir/Vtop.mk: $(VFILES) $(CFILES) 
 	verilator -Wall -Wno-LITENDIAN -Wno-lint -O3 $(TRACE) --no-skip-identical --cc top.sv \
-	--exe $(CFILES) /home/student/cse502/DRAMSim2_/DRAMSim2/libdramsim.so \
-	-CFLAGS -I/home/student/cse502/DRAMSim2_ -CFLAGS -std=c++11 -CFLAGS -g3 \
-	-LDFLAGS -Wl,-rpath=/home/student/cse502/DRAMSim2_/DRAMSim2 \
+	--exe $(CFILES) /shared/cse502/DRAMSim2/libdramsim.so \
+	-CFLAGS -I/shared/cse502 -CFLAGS -std=c++11 -CFLAGS -g3 \
+	-LDFLAGS -Wl,-rpath=/shared/cse502/DRAMSim2 \
 	-LDFLAGS -lncurses -LDFLAGS -lelf -LDFLAGS -lrt
 
 run: obj_dir/Vtop

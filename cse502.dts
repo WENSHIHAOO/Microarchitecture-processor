@@ -1,0 +1,51 @@
+/dts-v1/;
+/ {
+  #address-cells = <2>;
+  #size-cells = <2>;
+  compatible = "eth,ariane-bare-dev";
+  model = "eth,ariane-bare";
+  cpus {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    timebase-frequency = <520835>;
+
+    CPU0: cpu@0 {
+      clock-frequency = <66667000>;
+      device_type = "cpu";
+      reg = <0>;
+      status = "okay";
+      compatible = "eth, ariane", "riscv";
+      riscv,isa = "rv64ima";
+      mmu-type = "riscv,sv48";
+      tlb-split;
+
+      CPU0_intc: interrupt-controller {
+        #interrupt-cells = <1>;
+        interrupt-controller;
+        compatible = "riscv,cpu-intc";
+      };
+    };
+  };
+  memory@80000000 {
+    device_type = "memory";
+    reg = < 0x00000000 0x80000000 0x00000000 0x40000000 >;
+  };
+  soc {
+    #address-cells = <2>;
+    #size-cells = <2>;
+    compatible = "eth,ariane-bare-soc", "simple-bus";
+    ranges;
+
+    uart_lite@70beef00 {
+      compatible = "xlnx,axi-uartlite-1.02.a";
+      reg = < 0x00000000 0x70beef00 0x00000000 0x00001000 >;
+    };
+
+    clint@70aeef00 {
+      compatible = "riscv,clint0";
+      interrupts-extended = <&CPU0_intc 3 &CPU0_intc 7 >;
+      reg = < 0x00000000 0x70aeef00 0x00000000 0x000c0000 >;
+      reg-names = "control";
+    };
+  };
+};

@@ -20,6 +20,7 @@ extern "C" {
     }
 
     void do_pending_write(long long addr, long long val, int size) {
+        //cerr << "0:" << std::hex << addr << " 0:" << std::hex << val << " 0:" << std::hex << size << endl;
         if (size > 8) {
           cerr << "do_pending_write() size should be in number of bytes and cannot exceed 8" << endl;
           Verilated::gotFinish(true);
@@ -33,9 +34,12 @@ extern "C" {
                 pending_writes.erase(pw);
             }
         }
+        //long long phyadrr = System::sys->virt_to_phy(addr);
         for(int ofs = 0; ofs < size; ++ofs) {
             long long physptr = System::sys->virt_to_phy(addr + ofs);
             pending_writes[physptr] = (char)val;
+            //cerr << "0:" << std::hex << addr + ofs << " 0:" << std::hex << physptr << " 0:" << std::hex << val << endl;
+            //pending_writes[phyadrr+ofs] = (char)val;
             if (DEBUG_WRITES) cerr << "Received pending write for address 0x" << std::hex << (physptr) << " value 0x" << (int)(val) << endl;
             val >>= 8;
         }
@@ -50,6 +54,7 @@ extern "C" {
         switch(a7) {
 
         case __NR_brk:
+            //cerr << "1:" << endl;
             if (ECALL_DEBUG) cerr << "Allocate " << std::dec << (a0-System::sys->ecall_brk) << " bytes at 0x" << std::hex << System::sys->ecall_brk << std::dec << endl;
             if ((a0 > System::sys->max_elf_addr) && (a0 < System::sys->ramsize)) {
                 for(long long addr = System::sys->ecall_brk; addr < a0; addr += PAGE_SIZE) System::sys->virt_to_phy(addr); // prefault
@@ -60,6 +65,7 @@ extern "C" {
             return;
 
         case __NR_mmap:
+            //cerr << "2:" << endl;
             if (!(a0 == 0 && (a3 & MAP_ANONYMOUS))) { // only support ANONYMOUS mmap with NULL argument
                 cerr << "Simulator does not support mmap() arguments: a0=" << std::hex << a0 << " a3=" << a3 << endl;
                 Verilated::gotFinish(true);
@@ -85,6 +91,7 @@ extern "C" {
             return;
 
         case 1244/*__NR_arch_specific_syscall*/:
+            //cerr << "3:" << endl;
             switch(a0) {
                 case 1/*RISCV_ATOMIC_CMPXCHG*/:
                     a1 = System::sys->virt_to_phy(a1);
@@ -391,6 +398,7 @@ extern "C" {
             for(int i = 0; i < ECALL_MEMGUARD; ++i) {
                 long long physptr = System::sys->virt_to_phy((m.first & ~63) + i);
                 auto pw = pending_writes.find(physptr);
+                //cerr << "5:" << std::hex << physptr << " 5:" << std::hex << pw->first << " 5:" << std::hex << pending_writes.end()->first << endl;
                 if (pw == pending_writes.end()) continue;
                 if (DEBUG_WRITES) cerr << "Merging in pending write for address 0x" << std::hex << pw->first << " value 0x" << (int)(pw->second) << endl;
                 System::sys->ram[pw->first] = pw->second;
@@ -419,6 +427,7 @@ extern "C" {
         for(auto& m : memargs)
             for(int i = 0; i < ECALL_MEMGUARD; ++i) {
                 long long physptr = System::sys->virt_to_phy((m.first & ~63) + i);
+                //cerr << "6:" << std::hex << physptr << endl;
                 if (m.second[i] != System::sys->ram[physptr]) {
                     if (ECALL_DEBUG) cerr << "Invalidating " << std::dec << i << " on argument " << std::hex << physptr << "/" << m.first << "/" << System::sys->ram[physptr] << endl;
                     invalidations.insert(physptr & ~63);

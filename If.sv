@@ -47,12 +47,14 @@ always_comb begin
             else instrF1 = Data[set1][0][block1][31:0];
             LRU[set1] = 1;
             IF_miss = 0;
+            //if(PCF1 >= 32'h80200000) $display("1,%0x", instrF1);
         end
         else if(Valid_Tag[set1][1][t] & (Valid_Tag[set1][1][t-1:0] == tag1)) begin
             if(PCF1[2]) instrF1 = Data[set1][1][block1][63:32];
             else instrF1 = Data[set1][1][block1][31:0];
             LRU[set1] = 0;
             IF_miss = 0;
+            //if(PCF1 >= 32'h80200000) $display("1,%0x", instrF1);
         end
         else begin
             IF_addr = PCF1;
@@ -70,11 +72,13 @@ always_comb begin
                         if(PCF2[2]) instrF2 = Data[set2][0][block2][63:32];
                         else instrF2 = Data[set2][0][block2][31:0];
                         LRU[set2] = 1;
+                        //if(PCF2 >= 32'h80200000) $display("2,%0x", instrF2);
                     end
                     else if(Valid_Tag[set2][1][t] & (Valid_Tag[set2][1][t-1:0] == tag2)) begin
                         if(PCF2[2]) instrF2 = Data[set2][1][block2][63:32];
                         else instrF2 = Data[set2][1][block2][31:0];
                         LRU[set2] = 0;
+                        //if(PCF2 >= 32'h80200000) $display("2,%0x", instrF2);
                     end
                     else instrF2 = 0;
                 end

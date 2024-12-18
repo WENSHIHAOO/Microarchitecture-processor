@@ -1,6 +1,8 @@
 module rd_wb
 (
     //****** RD ******
+    input [63:0] PCD1,
+    input [63:0] PCD2,
     //--- enable ---
     input  enableD,
     // Superscalar 1
@@ -21,6 +23,7 @@ module rd_wb
     output JumpD1,
     output BranchD1,
     output        EcallD1,
+    output [1:0]  XretD1,
     // Superscalar 2
     //--- register_file ---
     output [63:0] RD1D2,
@@ -39,6 +42,7 @@ module rd_wb
     output JumpD2,
     output BranchD2,
     output        EcallD2,
+    output [1:0]  XretD2,
     //****** WB ******
     output enableW,
     output m_axi_acready,
@@ -73,6 +77,7 @@ always_comb begin
         BranchD1 = 0;
         EcallD1 = 0;
         ALUControlD1 = 0;
+        XretD1 = 0;
         case(instrD1[6:0])
             //3, Type I
             7'b0000011: begin
@@ -273,9 +278,55 @@ always_comb begin
             end
             //115, Type I
             7'b1110011: begin
-                if(instrD1[14:12] == 0 && instrD1[31:20] == 0) begin
-                    EcallD1 = 1; // ecall
-                    ALUControlD1 = 29;
+                case (instrD1[14:12])
+                    3'b000: begin
+                        case (instrD1[31:20])
+                            0: begin
+                                EcallD1 = 1; // ecall
+                                ALUControlD1 = 49;
+                            end
+                            default begin
+                                case (instrD1[31:25])
+                                    7'b0001000: begin
+                                        case (instrD1[24:20])
+                                            5'b00010: begin
+                                                XretD1 = 1;
+                                                ALUControlD1 = 57; // sret
+                                            end
+                                            5'b00101: ALUControlD1 = 60; // wfi
+                                        endcase
+                                    end
+                                    7'b0001001: ALUControlD1 = 61; // sfence.vma
+                                    7'b0011000: begin
+                                        XretD1 = 3;
+                                        ALUControlD1 = 58; // mret
+                                    end
+                                    7'b0111000: ALUControlD1 = 59; // mnret
+                                endcase
+                            end
+                        endcase
+                    end
+                    default: begin
+                        RegWriteD1 = 1;
+                        ALUSrcD1 = 1;
+                        ImmExtD1 = instrD1[31:20]; // imm_I
+                        Rs1D1 = instrD1[19:15];
+                        RdD1 = instrD1[11:7];
+                        case (instrD1[14:12])
+                            3'b001: ALUControlD1 = 51; // csrrw
+                            3'b010: ALUControlD1 = 52; // csrrs
+                            3'b011: ALUControlD1 = 53; // csrrc
+                            3'b101: ALUControlD1 = 54; // csrrwi
+                            3'b110: ALUControlD1 = 55; // csrrsi
+                            3'b111: ALUControlD1 = 56; // csrrci
+                        endcase
+                    end
+                endcase
+            end
+            default: begin
+                if(instrD1 != 0 & instrD1[6:0] != 7'b0001111) begin
+                    $display("%0x: instrD1: %0x", PCD1, instrD1);
+                    $finish;
                 end
             end
         endcase
@@ -295,6 +346,7 @@ always_comb begin
         JumpD2 = 0;
         BranchD2 = 0;
         EcallD2 = 0;
+        XretD2 = 0;
         ALUControlD2 = 0;
         case(instrD2[6:0])
             //3, Type I
@@ -496,9 +548,55 @@ always_comb begin
             end
             //115, Type I
             7'b1110011: begin
-                if(instrD2[14:12] == 0 && instrD2[31:20] == 0) begin
-                    EcallD2 = 1; // ecall
-                    ALUControlD2 = 29;
+                case (instrD2[14:12])
+                    3'b000: begin
+                        case (instrD2[31:20])
+                            0: begin
+                                EcallD2 = 1; // ecall
+                                ALUControlD2 = 49;
+                            end
+                            default begin
+                                case (instrD2[31:25])
+                                    7'b0001000: begin
+                                        case (instrD2[24:20])
+                                            5'b00010: begin
+                                                XretD2 = 1;
+                                                ALUControlD2 = 57; // sret
+                                            end
+                                            5'b00101: ALUControlD2 = 60; // wfi
+                                        endcase
+                                    end
+                                    7'b0001001: ALUControlD2 = 61; // sfence.vma
+                                    7'b0011000: begin
+                                        XretD2 = 3;
+                                        ALUControlD2 = 58; // mret
+                                    end
+                                    7'b0111000: ALUControlD2 = 59; // mnret
+                                endcase
+                            end
+                        endcase
+                    end
+                    default: begin
+                        RegWriteD2 = 1;
+                        ALUSrcD2 = 1;
+                        ImmExtD2 = instrD2[31:20]; // imm_I
+                        Rs1D2 = instrD2[19:15];
+                        RdD2 = instrD2[11:7];
+                        case (instrD2[14:12])
+                            3'b001: ALUControlD2 = 51; // csrrw
+                            3'b010: ALUControlD2 = 52; // csrrs
+                            3'b011: ALUControlD2 = 53; // csrrc
+                            3'b101: ALUControlD2 = 54; // csrrwi
+                            3'b110: ALUControlD2 = 55; // csrrsi
+                            3'b111: ALUControlD2 = 56; // csrrci
+                        endcase
+                    end
+                endcase
+            end
+            default: begin
+                if(instrD2 != 0 & instrD2[6:0] != 7'b0001111) begin
+                    $display("%0x: instrD2: %0x", PCD2, instrD2);
+                    $finish;
                 end
             end
         endcase
@@ -520,9 +618,15 @@ always_comb begin
     //--- WB ---
     if(enableW) begin
         // Superscalar 1
-        if((!(RegWriteW2 & (RdW1 == RdW2))) & (RegWriteW1 & RdW1!=0)) registers[RdW1] = ResultW1; // If two Superscalar write at the same time.
+        if((!(RegWriteW2 & (RdW1 == RdW2))) & (RegWriteW1 & RdW1!=0)) begin
+            registers[RdW1] = ResultW1; // If two Superscalar write at the same time.
+            if(RdW1 == 11) $display("_____________________:%0x;;;%0x;;;%0x", ResultW1, registers[11], registers[12]);
+        end
         // Superscalar 2
-        if(RegWriteW2 & RdW2!=0) registers[RdW2] = ResultW2;
+        if(RegWriteW2 & RdW2!=0) begin
+            registers[RdW2] = ResultW2;
+            if(RdW2 == 11) $display("_____________________:%0x;;;%0x;;;%0x", ResultW2, registers[11], registers[12]);
+        end
         //--- Ecall ---
         if(EcallW1 | EcallW2) begin
             a0 = registers[10];
@@ -533,6 +637,7 @@ always_comb begin
             a5 = registers[15];
             a6 = registers[16];
             a7 = registers[17];
+            //$display("ecall: %0x, %0x, %0x, %0x, %0x, %0x, %0x, %0x, %0x", a7, a0, a1, a2, a3, a4, a5, a6, a0);
             do_ecall(a7, a0, a1, a2, a3, a4, a5, a6, a0);
             registers[10] = a0;
             m_axi_acready = 1;

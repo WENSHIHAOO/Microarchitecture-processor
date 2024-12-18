@@ -29,7 +29,7 @@ System::System(Vtop* top, uint64_t ramsize, const char* binaryfn, const int argc
 
     char* HAVETLB = getenv("HAVETLB");
     use_virtual_memory = HAVETLB && (toupper(*HAVETLB) == 'Y');
-
+    cerr << "666666: " << std::hex << !use_virtual_memory << endl;
     char* FULLSYSTEM = getenv("FULLSYSTEM");
     full_system = FULLSYSTEM && (toupper(*FULLSYSTEM) == 'Y');
 
@@ -53,7 +53,11 @@ System::System(Vtop* top, uint64_t ramsize, const char* binaryfn, const int argc
     if (!full_system) {
       top->satp = get_phys_page() << 12;
       top->stackptr = ramsize - 4*MEGA;
-      for(int n = 1; n < STACK_PAGES; ++n) virt_to_phy(top->stackptr - PAGE_SIZE*n); // allocate stack pages
+      cout << "DDD:" << std::hex << top->stackptr << "DDD:" << std::hex << top->satp << endl;
+      for(int n = 1; n < STACK_PAGES; ++n) {
+        cout << "DDD:" << std::hex << n << endl;
+        virt_to_phy(top->stackptr - PAGE_SIZE*n);
+      } // allocate stack pages
 
       uint64_t* argvp = (uint64_t*)(ram+virt_to_phy(top->stackptr));
       argvp[0] = argc;
@@ -65,6 +69,7 @@ System::System(Vtop* top, uint64_t ramsize, const char* binaryfn, const int argc
           char* src = argv[arg];
           do {
               virt_to_phy(dst); // make sure phys page is allocated
+              //cout << "ram_virt1:" << std::hex << dst << endl;
               ram_virt[dst] = *src;
               dst++;
           } while(*(src++));
@@ -155,6 +160,7 @@ void System::tick(int clk) {
                         dramsim->addTransaction(false, r_addr - dram_offset)
                       );
                 addr_to_tag[r_addr] = make_pair(top->m_axi_araddr, top->m_axi_arid);
+                //cerr << "Read " << std::hex << top->m_axi_araddr << endl;
             }
         }
     }
@@ -173,6 +179,7 @@ void System::tick(int clk) {
             Verilated::gotFinish(true);
         } else if (full_system && (device = full_system_hardware_match(top->m_axi_awaddr))) {
             device->write_addr(device, top);
+            w_count = 8;
         } else {
             w_addr = top->m_axi_awaddr & ~0x3fULL;
             w_count = 8;
@@ -193,6 +200,7 @@ void System::tick(int clk) {
                         dramsim->addTransaction(true, w_addr - dram_offset)
                       );
                 addr_to_tag[w_addr] = make_pair(top->m_axi_awaddr, top->m_axi_awid);
+                //cerr << "Write " << std::hex << top->m_axi_awaddr << endl;
             }
         }
     }
@@ -200,9 +208,11 @@ void System::tick(int clk) {
     if (top->m_axi_wvalid && w_count) {
         if (full_system && (device = full_system_hardware_match(w_addr))) {
             device->write_data(device, top);
+            cout << "wwwwwwwwwwwwwwwwwwwwwwwwwwwwww:" << std::hex << w_count << " AAA " << (top->m_axi_wlast == 0) << endl;
         } else {
             // if transfer is in progress, can't change mind about willAcceptTransaction()
             assert(willAcceptTransaction(w_addr));
+            //cout << "ram1:" << std::hex << (w_addr - dram_offset + (8-w_count)*8) << endl;
             *((uint64_t*)(&ram[w_addr - dram_offset + (8-w_count)*8])) = top->m_axi_wdata;
         }
         if(--w_count == 0) assert(top->m_axi_wlast);
@@ -230,8 +240,9 @@ void System::dram_read_complete(unsigned id, uint64_t address, uint64_t clock_cy
     map<uint64_t, pair<uint64_t, int> >::iterator tag = addr_to_tag.find(address + dram_offset);
     assert(tag != addr_to_tag.end());
     uint64_t orig_addr = tag->second.first;
-    for(int i = 0; i < 64; i += 8)
+    for(int i = 0; i < 64; i += 8){
         read_response(address, *((uint64_t*)(&ram[((orig_addr&(~63))+((orig_addr+i)&63)) - dram_offset])), tag->second.second, i+8>=64);
+    }
     addr_to_tag.erase(tag);
 }
 
@@ -245,6 +256,7 @@ void System::dram_write_complete(unsigned id, uint64_t address, uint64_t clock_c
 
 void System::set_errno(const int new_errno) {
     if (errno_addr) {
+        //cout << "ram2:" << std::hex << errno_addr << endl;
         ram[errno_addr] = new_errno;
         invalidate(errno_addr);
     }
@@ -257,7 +269,8 @@ void System::invalidate(const uint64_t phy_addr) {
 uint64_t System::get_phys_page() {
     int page_no;
     do {
-        page_no = rand()%(ramsize/PAGE_SIZE);
+        page_no = rand()%(0x40000000/PAGE_SIZE);
+        //cerr << std::hex << page_no << " III " << std::hex << rand()%(ramsize/PAGE_SIZE) << endl;
     } while(phys_page_used[page_no]);
     phys_page_used[page_no] = true;
     return page_no;
@@ -268,18 +281,30 @@ uint64_t System::get_phys_page() {
 uint64_t System::get_pte(uint64_t base_addr, int vpn, bool isleaf, bool& allocated) {
     uint64_t addr = base_addr + vpn*8;
     uint64_t pte = *(uint64_t*) & ram[addr];
+    //test
+    //cerr << "III " << std::hex << addr << " III " << std::hex << base_addr << " III " << std::hex << vpn << endl;
+    //cerr << std::hex << addr << " III " << std::hex << pte << endl;
+    //test
     uint64_t page_no = pte >> 10;
     if(!(pte & VALID_PAGE)) {
-        page_no = get_phys_page();
-        if (isleaf)
+        do {
+            page_no = get_phys_page();
+        } while(page_no == 0);
+        if (isleaf){
+            //cerr << std::hex << addr << " III1 " << std::hex << ((page_no<<10) | VALID_PAGE) << " III1 " << std::hex << (uint64_t*)&ram[addr] << endl;
+            //cout << "ram2:" << std::hex << addr << endl;
             (*(uint64_t*)&ram[addr]) = (page_no<<10) | VALID_PAGE;
-        else
+        }
+        else{
+            //cerr << std::hex << addr << " III2 " << std::hex << ((page_no<<10) | VALID_PAGE_DIR) << " III2 " << std::hex << (uint64_t*)&ram[addr] << endl;
+            //cout << "ram3:" << std::hex << addr << endl;
             (*(uint64_t*)&ram[addr]) = (page_no<<10) | VALID_PAGE_DIR;
+        }
         invalidate(addr);
         pte = *(uint64_t*) & ram[addr];
         if (VM_DEBUG) {
-            cout << "Addr:" << std::dec << addr << endl;
-            cout << "Initialized page no " << std::dec << page_no << endl;
+            cout << "Addr:" << std::hex << addr << endl;
+            cout << "Initialized page no " << std::hex << page_no << endl;
         }
         allocated = isleaf;
     } else {
@@ -293,6 +318,7 @@ uint64_t System::virt_to_phy(const uint64_t virt_addr) {
 
     if (!use_virtual_memory) {
       if (virt_addr >= ramsize) {
+        cerr << "666666: " << std::hex << &use_virtual_memory << endl;
           cerr << "Invalid virt_to_phy, address " << std::hex << virt_addr << " is beyond end of memory at " << ramsize << endl;
           Verilated::gotFinish(true);
           return 0; // return fake translation to avoid core dump from bad address on the last cycle
@@ -305,20 +331,24 @@ uint64_t System::virt_to_phy(const uint64_t virt_addr) {
     uint64_t phy_offset = virt_addr & (PAGE_SIZE-1);
     uint64_t tmp_virt_addr = virt_addr >> 12;
     for(int i = 0; i < 4; i++) {
-        int vpn = (tmp_virt_addr & (0x01ff << 9*(3-i))) >> 9*(3-i);
+        int vpn = ((tmp_virt_addr & 0x3FFFF) & (0x01ff << 9*(3-i))) >> 9*(3-i);
+        //cerr << "KKK " << std::hex << vpn << " KKK " << std::hex << tmp_virt_addr << " KKK " << std::hex << i << " KKK " << std::hex << pt_base_addr << endl;
         uint64_t pte = get_pte(pt_base_addr, vpn, i == 3, allocated);
         pt_base_addr = ((pte&0x0000ffffffffffff)>>10)<<12;
     }
     if (allocated) {
         void* new_virt = ram_virt + (virt_addr & ~(PAGE_SIZE-1));
+        cerr << "AAA " << std::hex << (virt_addr & ~(PAGE_SIZE-1)) << " AAA " << std::hex << pt_base_addr << " AAA " << std::hex << virt_addr<< endl;
         assert(mmap(new_virt, PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_FIXED, ram_fd, pt_base_addr) == new_virt);
     }
     assert((pt_base_addr | phy_offset) < ramsize);
+    //cerr << "BBB" << std::hex << (pt_base_addr | phy_offset) << " AAA " << std::hex << virt_addr << " AAA " << std::hex << top->satp << endl;
+    //cerr << std::hex << pt_base_addr << " : " << std::hex << phy_offset << endl;
     return (pt_base_addr | phy_offset);
 }
 
 void System::load_segment(const int fd, const size_t memsz, const size_t filesz, uint64_t virt_addr) {
-    if (VM_DEBUG) cout << "Read " << std::dec << filesz << " bytes at " << std::hex << virt_addr << endl;
+    if (VM_DEBUG) cout << "Read " << std::hex << filesz << " bytes at " << std::hex << virt_addr << endl;
     for(size_t i = 0; i < memsz; ++i) assert(virt_to_phy(virt_addr + i) || (!use_virtual_memory && !virt_addr)); // prefault, 
     assert(filesz == read(fd, &ram_virt[virt_addr], filesz));
 }
@@ -327,15 +357,33 @@ uint64_t System::load_binary(const char* filename) {
 
     // open the elf file
     int fd = open(filename, O_RDONLY);
+    if (fd == -1) {
+        std::cerr << "Error message: " << strerror(errno) << std::endl;
+    }
     assert(fd != -1);
 
     if (full_system) {
       off_t sz = lseek(fd, 0L, SEEK_END);
       assert(sz == pread(fd, &ram[0], sz, 0));
       close(fd);
+      //cerr << ": " << std::hex << sz << endl;
+      //strncpy(&ram[sz - 1000], "---CSE502---", strlen("---CSE502---"));
+      /*
+      for (int i = 0; i < 1000000; ++i) {
+        //printf("%02x ", ram[i]);
+        std::cout << ram[sz - 1000000 + i];
+    }
+    */
       #define MARKER "---CSE502---"
       char* dtb = (char*)memmem((&ram[sz]-1000000), 1000000, MARKER, strlen(MARKER));
       assert(dtb);
+      /*
+      cerr << "--------------------------------------------------------------------------------------------------------------------------------" << std::hex << top->stackptr << endl;
+      for (int i = 0; i < 1000000; ++i) {
+        //printf("%02x ", ram[i]);
+        std::cout << dtb[i];
+    }
+    */
       top->stackptr = (dtb-&ram[0]+strlen(MARKER));
       cerr << "DTB is at 0x" << std::hex << top->stackptr << endl;
       return dram_offset;
@@ -382,7 +430,7 @@ uint64_t System::load_binary(const char* filename) {
 
             switch(phdr.p_type) {
             case PT_LOAD: {
-                if ((phdr.p_vaddr + phdr.p_memsz) > ramsize) {
+                if (((phdr.p_vaddr&(ramsize/2-1)) + phdr.p_memsz) > ramsize) {
                     cerr << "Not enough 'physical' ram" << endl;
                     exit(-1);
                 }
@@ -390,23 +438,23 @@ uint64_t System::load_binary(const char* filename) {
                     << " offset: "   << phdr.p_offset
                     << " filesize: " << phdr.p_filesz
                     << " memsize: "  << phdr.p_memsz
-                    << " vaddr: "    << std::hex << phdr.p_vaddr << std::dec
-                    << " paddr: "    << std::hex << phdr.p_paddr << std::dec
+                    << " vaddr: "    << std::hex << (phdr.p_vaddr&(ramsize/2-1)) << std::hex
+                    << " paddr: "    << std::hex << phdr.p_paddr << std::hex
                     << " align: "    << phdr.p_align
                     << endl;
 
                 // copy segment content from file to memory
                 assert(-1 != lseek(fd, phdr.p_offset, SEEK_SET));
-                load_segment(fd, phdr.p_memsz, phdr.p_filesz, phdr.p_vaddr);
+                load_segment(fd, phdr.p_memsz, phdr.p_filesz, (phdr.p_vaddr&(ramsize/2-1)));
 
-                if (max_elf_addr < (phdr.p_vaddr + phdr.p_memsz))
-                    max_elf_addr = (phdr.p_vaddr + phdr.p_memsz);
+                if (max_elf_addr < ((phdr.p_vaddr&(ramsize/2-1)) + phdr.p_memsz))
+                    max_elf_addr = ((phdr.p_vaddr&(ramsize/2-1)) + phdr.p_memsz);  
                 break;
             }
             case PT_TLS:
-                errno_addr = virt_to_phy(phdr.p_vaddr+0x20/* errno, grep ".*TLS.* errno$" */);
+                errno_addr = virt_to_phy((phdr.p_vaddr&(ramsize/2-1))+0x20/* errno, grep ".*TLS.* errno$" */);
                 assert(errno_addr);
-                cout << "Setting errno_addr to " << std::hex << errno_addr << " (TLS at " << phdr.p_vaddr << "+0x20)" << endl;
+                cout << "Setting errno_addr to " << std::hex << errno_addr << " (TLS at " << (phdr.p_vaddr&(ramsize/2-1)) << "+0x20)" << endl;
                 break;
             case PT_DYNAMIC:
             case PT_NOTE:
@@ -425,5 +473,5 @@ uint64_t System::load_binary(const char* filename) {
     }
     // finalize
     close(fd);
-    return elf_header.e_entry /* entry point */;
+    return (elf_header.e_entry&(ramsize/2-1)) /* entry point */;
 }

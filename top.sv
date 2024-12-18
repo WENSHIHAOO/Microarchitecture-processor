@@ -63,7 +63,7 @@ module top
   input   wire [ADDR_WIDTH-1:0]  m_axi_acaddr,
   input   wire [3:0]             m_axi_acsnoop
 );
-logic TLB = 0;
+wire [1:0] mode;
 // 2 Way Set Associative Cache Constants
 localparam C = 32 * 1024;                // Cache size (bytes), not including overhead such as the valid, tag, LRU, and dirty bits
 localparam N = 2;                        // Number of ways per set
@@ -90,10 +90,10 @@ localparam STACK_PAGES = 100;
 localparam MEGA = 512;
 
 //--- PTE ---
-reg [63:0] TLB_PTE_stackptr; // Page Table stackptr Entry,  = virt_3fc00000
-reg [63:0] TLB_PTE_Entry_entry; // Page Table entry Entry
+reg [63:0]    TLB_PTE_stackptr; // Page Table stackptr Entry,  = virt_3fc00000
+reg [63:0]    TLB_PTE_Entry_entry; // Page Table entry Entry
 reg [v_p-1:0] TLB_PTE_Entry [E_N]; // Page Table Entry,  = virt_0 + 20000 * E_N
-reg         TLB_PTE_Valid [E_N];
+reg           TLB_PTE_Valid [E_N];
 //--- AXI PTE ---
 logic TLB_PTE_step;
 logic TLB_PTE_AXI;
@@ -110,6 +110,7 @@ always_ff @ (posedge clk) begin
   end else if(TLB_PTE_step == 1) begin
     m_axi_arvalid <= 0;
     if(m_axi_rvalid) begin
+      $display("PTE: %0x, %0x, %0x", TLB_PTE_virt, m_axi_araddr, m_axi_rdata);
       if(m_axi_rdata!=0) begin
         TLB_PTE_Entry[TLB_PTE_virt+TLB_8] = m_axi_rdata >> 10;
         TLB_PTE_Valid[TLB_PTE_virt+TLB_8] = 1;
@@ -138,15 +139,19 @@ logic [v_p-1:0] TLB_virt;
 logic [t_n-1:0] TLB_index;
 always_ff @ (posedge clk) begin
   if(TLB_step==0 & TLB_AXI & !TLB_PTE_AXI & !reset & m_axi_arready) begin
+    //$display("index: %0x, %0x, %0x", TLB_index, T_N-1, TLB_index == T_N-1);
     if(TLB_index == T_N-1) TLB_index = (TLB_LRU[t_n-1:b]<<b)+B;
+    //$display("index: %0x, %0x", TLB_index,  (TLB_LRU[t_n-1:b]<<b)+B);
     if(TLB_begin) begin
       m_axi_araddr = TLB_PTE_Entry_entry;
+      //$display("TLB_begin: %0x, %0x", TLB_virt, m_axi_araddr);
       TLB_virt = TLB_virt[v_p-1:b] << b;
       m_axi_arvalid <= 1;
       m_axi_rready <= 1;
       TLB_step = 1;
     end else if(TLB_virt > stackptr[63:p_o]-STACK_PAGES) begin
       m_axi_araddr = TLB_PTE_stackptr - (stackptr[63:p_o] - TLB_virt)*8;
+      //$display("TLB_stackptr: %0x, %0x", TLB_virt, m_axi_araddr);
       m_axi_araddr = m_axi_araddr[63:b+y] << (b+y);
       TLB_virt = TLB_virt[v_p-1:b] << b;
       m_axi_arvalid <= 1;
@@ -154,6 +159,7 @@ always_ff @ (posedge clk) begin
       TLB_step = 1;
     end else if(TLB_PTE_Valid[TLB_virt[v_p-1:9]]) begin
       m_axi_araddr = (TLB_PTE_Entry[TLB_virt[v_p-1:9]] << p_o) + (TLB_virt - MEGA*TLB_virt[v_p-1:9])*8;
+      //$display("TLB_PTE: %0x, %0x, %0x", TLB_virt, TLB_virt[v_p-1:9], m_axi_araddr);
       m_axi_araddr = m_axi_araddr[63:b+y] << (b+y);
       TLB_virt = TLB_virt[v_p-1:b] << b;
       m_axi_arvalid <= 1;
@@ -161,13 +167,16 @@ always_ff @ (posedge clk) begin
       TLB_step = 1;
     end else begin
       TLB_PTE_virt = TLB_virt[v_p-1:9];
+      //$display("TLB_PTE_AXI: %0x, %0x", TLB_virt, m_axi_araddr);
       TLB_PTE_AXI = 1;
     end
   end else if(TLB_step == 1) begin
     m_axi_arvalid <= 0;
     if(m_axi_rvalid) begin
+      //$display("TLB: %0x, %0x, %0x, %0x", TLB_index, TLB_virt, m_axi_araddr, m_axi_rdata);
       if(m_axi_rdata!=0) begin
         TLB_PPN[TLB_index] = m_axi_rdata >> 10;
+        //$display("def: %0x, %0x",  TLB_index, m_axi_rdata >> 10);
         TLB_VPN[TLB_index] = TLB_virt + TLB_8;
         if(!TLB_begin) TLB_Valid[TLB_index] = 1;
         TLB_index = TLB_index + 1;
@@ -190,7 +199,7 @@ logic acfind;
 always_ff @ (posedge clk) begin
   if(m_axi_acready) begin
     if(m_axi_acvalid && (m_axi_acsnoop == 4'hd)) begin
-      if(TLB) begin
+      if(mode < 2) begin
         acfind = 1;
         TLB_phy = m_axi_acaddr[63:p_o];
         for(int i=0; i<T_N; i++) begin
@@ -205,6 +214,7 @@ always_ff @ (posedge clk) begin
           end
         end
         if(acfind) begin
+          //$display("acaddr: %0x", phyacaddr);
           if(IF.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][0][t] & (IF.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][0][t-1:0] == phyacaddr[63 : s+b+y])) begin
             IF.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][0][t] <= 0;
           end else if(IF.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][1][t] & (IF.Valid_Tag[phyacaddr[s+b+y-1 : b+y]][1][t-1:0] == phyacaddr[63 : s+b+y])) begin
@@ -219,6 +229,7 @@ always_ff @ (posedge clk) begin
           end
         end
       end else begin
+        //$display("acaddr: %0x", m_axi_acaddr);
         if(IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t] & (IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t-1:0] == m_axi_acaddr[63 : s+b+y])) begin
           IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][0][t] <= 0;
         end else if(IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t] & (IF.Valid_Tag[m_axi_acaddr[s+b+y-1 : b+y]][1][t-1:0] == m_axi_acaddr[63 : s+b+y])) begin
@@ -266,7 +277,8 @@ always_ff @ (posedge clk) begin
   // Address Read
   if(step==0 & write_step==0 & !TLB_AXI & !reset & m_axi_arready) begin
     if(MEM_miss1) begin
-      if(TLB) begin
+      if(mode < 2) begin
+        //$display("MEM1:1 %0x, %0x, %x", MEM_addr1, MEM_Data1, MEM_Size1);
         TLB_AXI = 1;
         TLB_index = -1;
         TLB_virt = MEM_addr1[63:p_o];
@@ -289,6 +301,7 @@ always_ff @ (posedge clk) begin
             end
         end
       end else begin
+        //$display("MEM1:2 %0x, %0x, %x", MEM_addr1, MEM_Data1, MEM_Size1);
         fetch_i_d = 1;
         tag = MEM_addr1[63     :s+b+y];
         set = MEM_addr1[s+b+y-1:b+y];
@@ -296,7 +309,8 @@ always_ff @ (posedge clk) begin
         m_axi_araddr = (MEM_addr1[63:b+y] << (b+y));
       end
     end else if(MEM_miss2) begin
-      if(TLB) begin
+      if(mode < 2) begin
+        //$display("MEM2:1 %0x, %0x, %x", MEM_addr2, MEM_Data2, MEM_Size2);
         TLB_AXI = 1;
         TLB_index = -1;
         TLB_virt = MEM_addr2[63:p_o];
@@ -319,6 +333,7 @@ always_ff @ (posedge clk) begin
             end
         end
       end else begin
+        //$display("MEM2:2 %0x, %0x, %x", MEM_addr2, MEM_Data2, MEM_Size2);
         fetch_i_d = 2;
         tag = MEM_addr2[63     :s+b+y];
         set = MEM_addr2[s+b+y-1:b+y];
@@ -326,7 +341,8 @@ always_ff @ (posedge clk) begin
         m_axi_araddr = (MEM_addr2[63:b+y] << (b+y));
       end
     end else if(IF_miss) begin
-      if(TLB) begin
+      //$display("%0x", IF_addr);
+      if(mode < 2) begin
         TLB_AXI = 1;
         TLB_index = -1;
         TLB_virt = IF_addr[63:p_o];
@@ -524,14 +540,19 @@ always_ff @ (posedge clk) begin
     end
   end
   else if(step == 1) begin
+    //$display("AIX: %0x, %0x, %0x, %0x", Stall_miss1, MEM_miss1, MemWriteReadSizeM1[3], MemWriteReadSizeM1[4]);
     // Data Read
     if(!done_read) begin
       m_axi_arvalid <= 0;
       if(m_axi_rvalid) begin
         case (fetch_i_d)
           1, 2: MEM.Data[set][MEM.LRU[set]][block_offset] = m_axi_rdata;
-          3: IF.Data[set][IF.LRU[set]][block_offset] = m_axi_rdata;
+          3: begin
+            IF.Data[set][IF.LRU[set]][block_offset] = m_axi_rdata;
+            //$display("%0x, %0x, %0x", (IF_ndone_addr[63:b+y] << (b+y))+block_offset*8, m_axi_araddr+block_offset*8, m_axi_rdata);
+          end
         endcase
+        //$display("%0x, %0x", m_axi_araddr, m_axi_rdata);
         block_offset <= block_offset + 1;
         if (m_axi_rlast) begin
           m_axi_rready <= 0;
@@ -544,6 +565,7 @@ always_ff @ (posedge clk) begin
       done_read = 0;
       case (fetch_i_d)
         1, 2: begin
+          //$display("R_Done: %0x, %0x, %0x", {{MEM.Valid_Tag[set][MEM.LRU[set]][t-1:0],set} << (b+y)}, m_axi_araddr, {tag, set, block_y});
           if(MEM.Dirty[set][MEM.LRU[set]]) begin
             // AXI Write Data
             write_Data[0] = temp_Data[0];
@@ -564,19 +586,19 @@ always_ff @ (posedge clk) begin
               case(MEM_Size1)
                 3'b000: begin
                   MEM.Data[set][MEM.LRU[set]][block_y[b+y-1:y]][8*block_y[2:0]+:8]   = MEM_Data1; // sb
-                  do_pending_write({tag, set, block_y}, MEM_Data1, 1);
+                  //do_pending_write({tag, set, block_y}, MEM_Data1, 1);
                 end
                 3'b001: begin
                   MEM.Data[set][MEM.LRU[set]][block_y[b+y-1:y]][16*block_y[2:1]+:16] = MEM_Data1; // sh
-                  do_pending_write({tag, set, block_y[5:1], 1'b0}, MEM_Data1, 2);
+                  //do_pending_write({tag, set, block_y[5:1], 1'b0}, MEM_Data1, 2);
                 end
                 3'b010: begin
                   MEM.Data[set][MEM.LRU[set]][block_y[b+y-1:y]][32*block_y[2]+:32]   = MEM_Data1; // sw
-                  do_pending_write({tag, set, block_y[5:2], 2'b00}, MEM_Data1, 4);
+                  //do_pending_write({tag, set, block_y[5:2], 2'b00}, MEM_Data1, 4);
                 end
                 3'b011: begin
                   MEM.Data[set][MEM.LRU[set]][block_y[b+y-1:y]]                      = MEM_Data1; // sd
-                  do_pending_write({tag, set, block_y[5:3], 3'b000}, MEM_Data1, 8);
+                  //do_pending_write({tag, set, block_y[5:3], 3'b000}, MEM_Data1, 8);
                 end
               endcase
               MEM.Dirty[set][MEM.LRU[set]] <= 1;
@@ -588,19 +610,19 @@ always_ff @ (posedge clk) begin
                 case(MEM_Size2)
                   3'b000: begin
                     MEM.Data[set][MEM.LRU[set]][MEM_addr2[b+y-1:y]][8*MEM_addr2[2:0]+:8]   = MEM_Data2; // sb
-                    do_pending_write(MEM_addr2, MEM_Data2, 1);
+                    //do_pending_write(MEM_addr2, MEM_Data2, 1);
                   end
                   3'b001: begin
                     MEM.Data[set][MEM.LRU[set]][MEM_addr2[b+y-1:y]][16*MEM_addr2[2:1]+:16] = MEM_Data2; // sh
-                    do_pending_write({MEM_addr2[63:1], 1'b0}, MEM_Data2, 2);
+                    //do_pending_write({MEM_addr2[63:1], 1'b0}, MEM_Data2, 2);
                   end
                   3'b010: begin
                     MEM.Data[set][MEM.LRU[set]][MEM_addr2[b+y-1:y]][32*MEM_addr2[2]+:32]   = MEM_Data2; // sw
-                    do_pending_write({MEM_addr2[63:2], 2'b00}, MEM_Data2, 4);
+                    //do_pending_write({MEM_addr2[63:2], 2'b00}, MEM_Data2, 4);
                   end
                   3'b011: begin
                     MEM.Data[set][MEM.LRU[set]][MEM_addr2[b+y-1:y]]                        = MEM_Data2; // sd
-                    do_pending_write({MEM_addr2[63:3], 3'b000}, MEM_Data2, 8);
+                    //do_pending_write({MEM_addr2[63:3], 3'b000}, MEM_Data2, 8);
                   end
                 endcase
                 MEM.Dirty[set][MEM.LRU[set]] <= 1;
@@ -615,19 +637,19 @@ always_ff @ (posedge clk) begin
               case(MEM_Size2)
                 3'b000: begin
                   MEM.Data[set][MEM.LRU[set]][block_y[b+y-1:y]][8*block_y[2:0]+:8]   = MEM_Data2; // sb
-                  do_pending_write({tag, set, block_y}, MEM_Data2, 1);
+                  //do_pending_write({tag, set, block_y}, MEM_Data2, 1);
                 end
                 3'b001: begin
                   MEM.Data[set][MEM.LRU[set]][block_y[b+y-1:y]][16*block_y[2:1]+:16] = MEM_Data2; // sh
-                  do_pending_write({tag, set, block_y[5:1], 1'b0}, MEM_Data2, 2);
+                  //do_pending_write({tag, set, block_y[5:1], 1'b0}, MEM_Data2, 2);
                 end
                 3'b010: begin
                   MEM.Data[set][MEM.LRU[set]][block_y[b+y-1:y]][32*block_y[2]+:32]   = MEM_Data2; // sw
-                  do_pending_write({tag, set, block_y[5:2], 2'b00}, MEM_Data2, 4);
+                  //do_pending_write({tag, set, block_y[5:2], 2'b00}, MEM_Data2, 4);
                 end
                 3'b011: begin
                   MEM.Data[set][MEM.LRU[set]][block_y[b+y-1:y]]                      = MEM_Data2; // sd
-                  do_pending_write({tag, set, block_y[5:3], 3'b000}, MEM_Data2, 8);
+                  //do_pending_write({tag, set, block_y[5:3], 3'b000}, MEM_Data2, 8);
                 end
               endcase
               MEM.Dirty[set][MEM.LRU[set]] <= 1;
@@ -647,6 +669,7 @@ always_ff @ (posedge clk) begin
       block_offset <= 0;
       step = 0;
     end
+    //$display("AIX: %0x, %0x, %0x, %0x", Stall_miss1, MEM_miss1, MemWriteReadSizeM1[3], MemWriteReadSizeM1[4]);
   end
 end
 
@@ -656,15 +679,17 @@ logic [2:0]  write_block_offset;
 always_ff @ (posedge clk) begin
   // Address Write
   if(write_step==1 & !TLB_AXI) begin
+    //$display("1111111111111");
     if(m_axi_awready) begin
-      if(TLB) begin
+      if(mode < 2) begin
         TLB_AXI = 1;
         TLB_index = -1;
         TLB_virt = write_addr[63:p_o];
         for(int i=0; i<T_N; i++) begin
             if(TLB_Valid[i]) begin
               if(TLB_virt == TLB_VPN[i]) begin
-                m_axi_awaddr = (TLB_PPN[i] << p_o) + write_addr[p_o-1:0]; //virt_to_phy
+                m_axi_awaddr <= (TLB_PPN[i] << p_o) + write_addr[p_o-1:0]; //virt_to_phy
+                //$display("1111111111111: %0x, %0x, %0x", write_addr, TLB_PPN[i], m_axi_awaddr);
                 TLB_LRU = i;
                 TLB_AXI = 0;
                 m_axi_wlast <= 0; //other
@@ -678,6 +703,7 @@ always_ff @ (posedge clk) begin
             end
         end
       end else begin
+        //$display("1111111111111: %0x", write_addr);
         m_axi_awaddr <= write_addr;
         m_axi_wlast <= 0;
         m_axi_awvalid <= 1;
@@ -688,6 +714,7 @@ always_ff @ (posedge clk) begin
   // Data Write
   else if(write_step == 2) begin
     if(m_axi_wready) begin
+      //$display("2222222222: %0x", write_Data[write_block_offset]);
       m_axi_awvalid <= 0;
       m_axi_wdata <= write_Data[write_block_offset];
       m_axi_wvalid <= 1;
@@ -725,21 +752,27 @@ wire        PCSrcE1;
 wire        PCSrcE2;
 wire [63:0] PCTargetE;
 always_ff @ (posedge clk) begin
+  //$display("%0x, %0x, %0x, %0x, %0x, %0x, %0x, %0x, %0x, %0x", Stall_miss1, MEM_miss1, MemWriteReadSizeM1[3], MemWriteReadSizeM1[4], IF_ndone, step, write_step, TLB_AXI, reset, m_axi_arready);
   if(reset) begin
-    if(TLB) begin
-      TLB_AXI = 1;
-      TLB_PTE_Entry_entry = satp;
-      TLB_begin = 1;
-    end else begin
-      enable <= 1;
-      pc = entry;
-      // Superscalar 1
-      PCF1 <= entry;
-      // Superscalar 2
-      PCF2 <= entry + 4;
-    end
+    mode <= 3;
+    ///////////////////////////////////// mode !!! change
+    enable <= 1;
+    pc = entry;
+    // Superscalar 1
+    PCF1 <= entry;
+    // Superscalar 2
+    PCF2 <= entry + 4;
+    /////////////////////////////////////
     axi_i = 0;
     RD_WB.registers[2] = stackptr;
+    RD_WB.registers[11] = stackptr + entry;
+    // Privileged
+    ALU.csrs[12'h301][63:62] <= 2;
+    ALU.csrs[12'h301][20] <= 1;
+    ALU.csrs[12'h301][18] <= 1;
+    ALU.csrs[12'h301][12] <= 1;
+    ALU.csrs[12'h301][8] <= 1;
+    ALU.csrs[12'h301][0] <= 1;
     // Write
     m_axi_awid <= 0;
     m_axi_awlen <= 7;  // Burst_Length = ARLEN[7:0] +1 = 8
@@ -771,14 +804,21 @@ always_ff @ (posedge clk) begin
       if(axi_i < 4) begin
         TLB_AXI = 1;
         TLB_index = axi_i;
-        if(axi_i < 3) TLB_PTE_Entry_entry = (TLB_PPN[axi_i-1] << p_o) + (((((stackptr-PAGE_SIZE) >> p_o) & 18'h3FFFF)  & (12'h1ff << 9*(3-axi_i))) >> 9*(3-axi_i))*8;
-        else if(axi_i == 3) TLB_PTE_Entry_entry = TLB_PPN[axi_i] << p_o;
+        if(axi_i < 3) begin
+          TLB_PTE_Entry_entry = (TLB_PPN[axi_i-1] << p_o) + (((((stackptr-PAGE_SIZE) >> p_o) & 18'h3FFFF)  & (12'h1ff << 9*(3-axi_i))) >> 9*(3-axi_i))*8;
+          //$display("abc: %0x, %0x", axi_i-1, TLB_PPN[axi_i-1]);
+        end else if(axi_i == 3) begin
+          TLB_PTE_Entry_entry = TLB_PPN[axi_i] << p_o;
+          //$display("abc: %0x, %0x", axi_i, TLB_PPN[axi_i]);
+        end
       end else begin
         TLB_PPN[0] = TLB_PPN[axi_i-1];
         TLB_VPN[0] = stackptr[63:p_o];
         TLB_Valid[0] = 1;
         TLB_PTE_Entry_entry = TLB_PPN[1] << p_o;
         TLB_PTE_stackptr = (TLB_PPN[2] << p_o) + ((((stackptr-PAGE_SIZE) >> p_o) & 18'h3FFFF) & (12'h1ff))*8 + 8;
+        $display("begin: %0x, %0x, %0x, %0x", TLB_PPN[0], TLB_VPN[0], TLB_PTE_Entry_entry, TLB_PTE_stackptr);
+        //$finish;
         TLB_begin = 0;
         enable <= 1;
         pc =  entry;
@@ -801,6 +841,8 @@ always_ff @ (posedge clk) begin
         // Superscalar 2
         PCF2 <= pc + 4;
         B_pc = 0;
+        $display("1, %0x: '%0x', %0x", PCF1, PCF2, mode);
+        //$display("%0x, %0x, %0x, %0x, %0x, %0x, %0x", StallF, StallD, StallE, StallM, StallW, FlushD, FlushE);
       end
       //@@@ pipe_begin_IF @@@
       if(enableF & !StallF) begin
@@ -818,9 +860,10 @@ always_ff @ (posedge clk) begin
           // Superscalar 2
           PCF2 <= pc + 4;
           B_pc = 0;
+          $display("2, %0x: '%0x', %0x", PCF1, PCF2, mode);
+          //$display("%0x, %0x, %0x, %0x, %0x, %0x, %0x", StallF, StallD, StallE, StallM, StallW, FlushD, FlushE);
         end
       end
-
       //****** Branch Prediction ******
       if(B_pc == 0) begin
         B_index = B_N;
@@ -902,6 +945,7 @@ always_ff @ (posedge clk) begin
     PCD2 <= 0;
     PCPlus4D2 <= 0;
   end else if(enableF) begin
+    //$finish;
     if(!FlushD & !StallD) begin
       // Superscalar 1
       instrD1 <= instrF1;
@@ -915,7 +959,7 @@ always_ff @ (posedge clk) begin
     // Finish
     if(instrF1 == 0) begin
       finishD <= 1;
-      enable <= 0;
+      //enable <= 0;
     end
   end
 end
@@ -933,9 +977,10 @@ wire [63:0] ImmExtD1;
 wire [4:0]  Rs1D1;
 wire [4:0]  Rs2D1;
 wire [4:0]  RdD1;
-wire  JumpD1;
-wire  BranchD1;
+wire JumpD1;
+wire BranchD1;
 wire        EcallD1;
+wire [1:0]  XretD1;
 // Superscalar 2
 wire [63:0] RD1D2;
 wire [63:0] RD2D2;
@@ -948,11 +993,14 @@ wire [63:0] ImmExtD2;
 wire [4:0]  Rs1D2;
 wire [4:0]  Rs2D2;
 wire [4:0]  RdD2;
-wire  JumpD2;
-wire  BranchD2;
+wire JumpD2;
+wire BranchD2;
 wire        EcallD2;
+wire [1:0]  XretD2;
 rd_wb RD_WB(
   //****** RD ******
+  .PCD1(PCD1),
+  .PCD2(PCD2),
   //--- enable ---
   .enableD(enableD),
   // Superscalar 1
@@ -973,6 +1021,7 @@ rd_wb RD_WB(
   .JumpD1(JumpD1),
   .BranchD1(BranchD1),
   .EcallD1(EcallD1),
+  .XretD1(XretD1),
   // Superscalar 2
   //--- register_file ---
   .RD1D2(RD1D2),
@@ -991,6 +1040,7 @@ rd_wb RD_WB(
   .JumpD2(JumpD2),
   .BranchD2(BranchD2),
   .EcallD2(EcallD2),
+  .XretD2(XretD2),
   //****** WB ******
   .enableW(enableW),
   .m_axi_acready(m_axi_acready),
@@ -1036,6 +1086,7 @@ wire [4:0]  Rs2E1;
 wire JumpE1;
 wire BranchE1;
 wire        EcallE1;
+wire [1:0]  XretE1;
 // Superscalar 2
 //--- pipe ---
 wire [4:0]  RdE2;
@@ -1056,6 +1107,7 @@ wire [4:0]  Rs2E2;
 wire JumpE2;
 wire BranchE2;
 wire        EcallE2;
+wire [1:0]  XretE2;
 always_ff @ (posedge clk) begin
   //--- pipe_RD_ALU ---
   if(!StallE) enableE <= enableD;
@@ -1073,6 +1125,7 @@ always_ff @ (posedge clk) begin
     JumpE1 <= 0;
     BranchE1 <= 0;
     EcallE1 <= 0;
+    XretE1 <= 0;
     //--- register_file ---
     RD1E1 <= 0;
     RD2E1 <= 0;
@@ -1093,6 +1146,7 @@ always_ff @ (posedge clk) begin
     JumpE2 <= 0;
     BranchE2 <= 0;
     EcallE2 <= 0;
+    XretE2 <= 0;
     //--- register_file ---
     RD1E2 <= 0;
     RD2E2 <= 0;
@@ -1101,6 +1155,7 @@ always_ff @ (posedge clk) begin
     PCE2 <= 0;
     PCPlus4E2 <= 0;
   end else if(enableD & !FlushE & !StallE) begin
+    //$display("%0x, %0x, %0x, %0x",PCD1, PCD2, instrD1, instrD2);
     finishE <= finishD;
     // Superscalar 1
     //--- control_unit ---
@@ -1115,6 +1170,7 @@ always_ff @ (posedge clk) begin
     JumpE1 <= JumpD1;
     BranchE1 <= BranchD1;
     EcallE1 <= EcallD1;
+    XretE1 <= XretD1;
     //--- register_file ---
     RD1E1 <= RD1D1;
     RD2E1 <= RD2D1;
@@ -1135,6 +1191,7 @@ always_ff @ (posedge clk) begin
     JumpE2 <= JumpD2;
     BranchE2 <= BranchD2;
     EcallE2 <= EcallD2;
+    XretE2 <= XretD2;
     //--- register_file ---
     RD1E2 <= RD1D2;
     RD2E2 <= RD2D2;
@@ -1149,7 +1206,7 @@ always_ff @ (posedge clk) begin
   if(enableW) begin
     //****** Finish ******
     if(finishW) begin
-      $finish;
+      //$finish;
     end
   end
 end
@@ -1173,6 +1230,7 @@ alu #(.B_N(B_N),
   .clk(clk),
   .enableE(enableE),
   .StallE(StallE),
+  .mode(mode),
   .PCSrcE1(PCSrcE1),
   .PCSrcE2(PCSrcE2),
   .PCTargetE(PCTargetE),
@@ -1184,6 +1242,7 @@ alu #(.B_N(B_N),
   .FrowardBE1(FrowardBE1),
   .ResultW1(ResultW1),
   //--- ALU ---
+  .XretE1(XretE1),
   .JumpE1(JumpE1),
   .BranchE1(BranchE1),
   .RD1E1(RD1E1),
@@ -1195,12 +1254,14 @@ alu #(.B_N(B_N),
   .ALUResultE1(ALUResultE1),
   .WriteDataE1(WriteDataE1),
   .ALUResultM1(ALUResultM1),
+  .RdE1(RdE1),
   // Superscalar 2
   //--- hazard ---
   .FrowardAE2(FrowardAE2),
   .FrowardBE2(FrowardBE2),
   .ResultW2(ResultW2),
   //--- ALU ---
+  .XretE2(XretE2),
   .JumpE2(JumpE2),
   .BranchE2(BranchE2),
   .RD1E2(RD1E2),
@@ -1211,7 +1272,8 @@ alu #(.B_N(B_N),
   .ImmExtE2(ImmExtE2),
   .ALUResultE2(ALUResultE2),
   .WriteDataE2(WriteDataE2),
-  .ALUResultM2(ALUResultM2)
+  .ALUResultM2(ALUResultM2),
+  .Rs1E2(Rs1E2)
 );
 
 //@@@ pipe_ALU_MEM @@@
